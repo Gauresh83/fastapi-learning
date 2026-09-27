@@ -1,0 +1,1446 @@
+# Pydantic `model_dump()` and Serialization
+
+## What is Serialization?
+
+Serialization means converting a Python object into a format that can be easily stored, transferred, or sent through an API.
+
+For example:
+
+```text
+Pydantic Model
+      ↓
+Dictionary / JSON
+```
+
+Pydantic provides methods such as:
+
+```python
+model_dump()
+model_dump_json()
+```
+
+for this purpose.
+
+---
+
+# Example Model
+
+In this example, we have two Pydantic models:
+
+```python
+class Address(BaseModel):
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+```
+
+and:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str = "male"
+    age: int
+    address: Address
+```
+
+The `Address` model is nested inside the `Patient` model.
+
+The structure is:
+
+```text
+Patient
+│
+├── name
+├── gender
+├── age
+│
+└── address
+     ├── street
+     ├── city
+     ├── state
+     └── zip_code
+```
+
+---
+
+# Default Values
+
+This line is important:
+
+```python
+gender: str = "male"
+```
+
+It means that `gender` has a default value of `"male"`.
+
+So we can create a patient without explicitly providing gender:
+
+```python
+patient_dict = {
+    "name": "John Doe",
+    "age": 30,
+    "address": address_dict
+}
+```
+
+There is no:
+
+```python
+"gender": "male"
+```
+
+in the dictionary.
+
+Pydantic automatically uses:
+
+```text
+gender = "male"
+```
+
+because that is the default value.
+
+---
+
+# Creating the Patient
+
+We have:
+
+```python
+patient_dict = {
+    "name": "John Doe",
+    "age": 30,
+    "address": address_dict
+}
+```
+
+Then:
+
+```python
+patient = Patient(**patient_dict)
+```
+
+The `**` operator unpacks the dictionary.
+
+It is similar to:
+
+```python
+patient = Patient(
+    name="John Doe",
+    age=30,
+    address=address_dict
+)
+```
+
+Pydantic validates the data and creates the `Patient` model.
+
+The resulting model contains:
+
+```text
+name    = "John Doe"
+gender  = "male"
+age     = 30
+address = Address(...)
+```
+
+Even though `gender` wasn't provided, it exists in the model because it has a default value.
+
+---
+
+# What is `model_dump()`?
+
+```python
+patient.model_dump()
+```
+
+converts the Pydantic model into a Python dictionary.
+
+For example:
+
+```python
+temp = patient.model_dump()
+```
+
+The result is approximately:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30,
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "zip_code": "10001"
+    }
+}
+```
+
+Notice that the nested `Address` model is also converted into a dictionary.
+
+---
+
+# Type of `model_dump()`
+
+When we do:
+
+```python
+temp = patient.model_dump()
+
+print(type(temp))
+```
+
+the output is:
+
+```text
+<class 'dict'>
+```
+
+So:
+
+```text
+Pydantic Model
+      ↓
+model_dump()
+      ↓
+Python Dictionary
+```
+
+---
+
+# Why is `model_dump()` Useful?
+
+It is useful when we need to:
+
+* Convert a Pydantic model to a dictionary
+* Store model data
+* Send data to another part of an application
+* Prepare data for database operations
+* Serialize data
+* Work with API responses
+
+For example:
+
+```python
+data = patient.model_dump()
+```
+
+Now `data` is a normal Python dictionary.
+
+---
+
+# `model_dump_json()`
+
+Pydantic also provides:
+
+```python
+patient.model_dump_json()
+```
+
+This converts the model into a JSON string.
+
+Example:
+
+```python
+temp = patient.model_dump_json()
+```
+
+The result looks like:
+
+```json
+{
+  "name": "John Doe",
+  "gender": "male",
+  "age": 30,
+  "address": {
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY",
+    "zip_code": "10001"
+  }
+}
+```
+
+The important difference is:
+
+```text
+model_dump()
+      ↓
+Python dictionary
+
+model_dump_json()
+      ↓
+JSON string
+```
+
+---
+
+# Dictionary vs JSON String
+
+This is an important distinction.
+
+### `model_dump()`
+
+```python
+data = patient.model_dump()
+```
+
+Type:
+
+```python
+dict
+```
+
+### `model_dump_json()`
+
+```python
+data = patient.model_dump_json()
+```
+
+Type:
+
+```python
+str
+```
+
+So:
+
+```python
+print(type(patient.model_dump()))
+```
+
+gives:
+
+```text
+<class 'dict'>
+```
+
+while:
+
+```python
+print(type(patient.model_dump_json()))
+```
+
+gives:
+
+```text
+<class 'str'>
+```
+
+---
+
+# `model_dump(mode="json")`
+
+You can also use:
+
+```python
+patient.model_dump(mode="json")
+```
+
+This still returns a **dictionary**, not a JSON string.
+
+Example:
+
+```python
+temp = patient.model_dump(mode="json")
+```
+
+The result is conceptually:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30,
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "zip_code": "10001"
+    }
+}
+```
+
+The important difference is:
+
+```text
+model_dump()
+    → Python-oriented dictionary
+
+model_dump(mode="json")
+    → JSON-compatible dictionary
+
+model_dump_json()
+    → JSON string
+```
+
+`mode="json"` is particularly useful when the data contains Python/Pydantic types that need to be represented in JSON-compatible forms.
+
+---
+
+# `include`
+
+`include` allows us to select only specific fields.
+
+Example:
+
+```python
+temp = patient.model_dump(
+    include={"name", "age"}
+)
+```
+
+This means:
+
+> Include only `name` and `age`.
+
+The output becomes:
+
+```python
+{
+    "name": "John Doe",
+    "age": 30
+}
+```
+
+Everything else is removed from the dumped result.
+
+---
+
+# Why Use `include`?
+
+Suppose the model contains:
+
+```text
+name
+gender
+age
+address
+```
+
+But we only want:
+
+```text
+name
+age
+```
+
+Instead of manually creating a new dictionary:
+
+```python
+{
+    "name": patient.name,
+    "age": patient.age
+}
+```
+
+we can simply use:
+
+```python
+patient.model_dump(
+    include={"name", "age"}
+)
+```
+
+---
+
+# `exclude`
+
+`exclude` does the opposite of `include`.
+
+Example:
+
+```python
+temp = patient.model_dump(
+    exclude={"address"}
+)
+```
+
+This means:
+
+> Dump everything except `address`.
+
+The result becomes:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30
+}
+```
+
+So:
+
+```text
+include
+    ↓
+Keep only specified fields
+
+exclude
+    ↓
+Remove specified fields
+```
+
+---
+
+# `include` vs `exclude`
+
+| Option                    | Meaning                           |
+| ------------------------- | --------------------------------- |
+| `include={"name", "age"}` | Only include these fields         |
+| `exclude={"address"}`     | Include everything except address |
+
+Example:
+
+```python
+patient.model_dump(
+    include={"name", "age"}
+)
+```
+
+Result:
+
+```python
+{
+    "name": "John Doe",
+    "age": 30
+}
+```
+
+Example:
+
+```python
+patient.model_dump(
+    exclude={"address"}
+)
+```
+
+Result:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30
+}
+```
+
+---
+
+# `exclude_unset=True`
+
+This is the most important concept in your current code.
+
+You have:
+
+```python
+temp = patient.model_dump(
+    exclude_unset=True
+)
+```
+
+This means:
+
+> Exclude fields that were not explicitly provided when the model was created.
+
+This is different from simply checking whether a field exists in the model.
+
+---
+
+# Understanding `gender`
+
+Your model says:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str = "male"
+    age: int
+    address: Address
+```
+
+Your input is:
+
+```python
+patient_dict = {
+    "name": "John Doe",
+    "age": 30,
+    "address": address_dict
+}
+```
+
+Notice:
+
+```text
+gender
+```
+
+was NOT provided.
+
+Pydantic therefore uses the default:
+
+```text
+gender = "male"
+```
+
+So:
+
+```python
+patient.gender
+```
+
+returns:
+
+```text
+male
+```
+
+But `gender` was not explicitly set by the input.
+
+This distinction is what `exclude_unset=True` uses.
+
+---
+
+# Without `exclude_unset=True`
+
+If we do:
+
+```python
+patient.model_dump()
+```
+
+the output includes `gender`:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30,
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "zip_code": "10001"
+    }
+}
+```
+
+Why?
+
+Because `model_dump()` normally includes all model fields.
+
+---
+
+# With `exclude_unset=True`
+
+Now:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+Since `gender` was not explicitly provided, it is excluded.
+
+The output becomes approximately:
+
+```python
+{
+    "name": "John Doe",
+    "age": 30,
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "zip_code": "10001"
+    }
+}
+```
+
+Notice:
+
+```text
+gender = "male"
+```
+
+is missing.
+
+---
+
+# Why Does `gender` Disappear?
+
+This is an important concept.
+
+The model contains:
+
+```text
+gender = "male"
+```
+
+but the input did not contain:
+
+```python
+"gender": "male"
+```
+
+So Pydantic knows that `gender` was filled using its default value.
+
+With:
+
+```python
+exclude_unset=True
+```
+
+Pydantic says:
+
+> Only give me the fields that were explicitly supplied.
+
+Therefore:
+
+```text
+name       → included
+age        → included
+address    → included
+gender     → excluded
+```
+
+---
+
+# `exclude_unset` Does Not Mean "Remove Default Values"
+
+This is an important distinction.
+
+It does NOT simply mean:
+
+> Remove all fields having default values.
+
+It means:
+
+> Remove fields that were not explicitly set during model creation.
+
+For example:
+
+```python
+patient_dict = {
+    "name": "John Doe",
+    "gender": "female",
+    "age": 30,
+    "address": address_dict
+}
+```
+
+Now `gender` was explicitly provided.
+
+So:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+will include:
+
+```python
+"gender": "female"
+```
+
+---
+
+# Example
+
+## Case 1: Gender not provided
+
+```python
+patient_dict = {
+    "name": "John Doe",
+    "age": 30,
+    "address": address_dict
+}
+```
+
+Model:
+
+```text
+gender = "male"
+```
+
+But:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+does not include gender.
+
+---
+
+## Case 2: Gender provided
+
+```python
+patient_dict = {
+    "name": "John Doe",
+    "gender": "female",
+    "age": 30,
+    "address": address_dict
+}
+```
+
+Now:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+includes:
+
+```python
+"gender": "female"
+```
+
+because the field was explicitly supplied.
+
+---
+
+# Why `exclude_unset` Is Useful in APIs
+
+This option is especially useful for update operations.
+
+Suppose we have:
+
+```text
+Existing patient:
+name = John
+gender = male
+age = 30
+```
+
+The user wants to update only the age:
+
+```json
+{
+    "age": 31
+}
+```
+
+If we dump the model normally, we might get all fields.
+
+But with:
+
+```python
+model_dump(exclude_unset=True)
+```
+
+we can keep only the values that the user actually supplied.
+
+This is useful for partial updates such as HTTP `PATCH` requests.
+
+---
+
+# Difference Between `exclude_unset`, `exclude_defaults`, and `exclude_none`
+
+Pydantic provides several useful options.
+
+## `exclude_unset=True`
+
+Removes fields that were not explicitly provided.
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+Think:
+
+```text
+"Was this field supplied by the user?"
+```
+
+---
+
+## `exclude_defaults=True`
+
+Removes fields whose value is equal to their default value.
+
+For example:
+
+```python
+gender: str = "male"
+```
+
+If:
+
+```python
+gender = "male"
+```
+
+then it can be excluded because it matches the default.
+
+This is different from `exclude_unset`.
+
+---
+
+## `exclude_none=True`
+
+Removes fields whose value is:
+
+```python
+None
+```
+
+Example:
+
+```python
+patient.model_dump(exclude_none=True)
+```
+
+Think:
+
+```text
+"Remove fields whose current value is None."
+```
+
+---
+
+# Important Comparison
+
+| Option                  | What does it remove?                 |
+| ----------------------- | ------------------------------------ |
+| `exclude_unset=True`    | Fields not explicitly supplied       |
+| `exclude_defaults=True` | Fields equal to their default value  |
+| `exclude_none=True`     | Fields whose current value is `None` |
+
+These options solve different problems.
+
+---
+
+# `exclude_unset` Example
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str = "male"
+```
+
+Input:
+
+```python
+patient = Patient(name="John")
+```
+
+The model contains:
+
+```text
+name = John
+gender = male
+```
+
+But only `name` was explicitly supplied.
+
+Therefore:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+returns:
+
+```python
+{
+    "name": "John"
+}
+```
+
+---
+
+# `exclude_defaults` Example
+
+Same model:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str = "male"
+```
+
+If:
+
+```python
+patient = Patient(
+    name="John",
+    gender="male"
+)
+```
+
+then `gender` was explicitly supplied, but it is equal to its default.
+
+So:
+
+```python
+patient.model_dump(exclude_defaults=True)
+```
+
+can remove `gender`.
+
+This shows why `exclude_unset` and `exclude_defaults` are not the same thing.
+
+---
+
+# `exclude_none` Example
+
+Suppose:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    nickname: Optional[str] = None
+```
+
+If:
+
+```python
+patient = Patient(name="John")
+```
+
+then:
+
+```text
+nickname = None
+```
+
+Using:
+
+```python
+patient.model_dump(exclude_none=True)
+```
+
+removes `nickname`.
+
+---
+
+# Nested Models and `model_dump()`
+
+Your patient contains a nested `Address` model.
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str = "male"
+    age: int
+    address: Address
+```
+
+When you call:
+
+```python
+patient.model_dump()
+```
+
+Pydantic recursively converts the nested model too.
+
+So:
+
+```text
+Patient object
+     |
+     +-- Address object
+              |
+              v
+        Address dictionary
+```
+
+Result:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30,
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "zip_code": "10001"
+    }
+}
+```
+
+---
+
+# `model_dump()` vs `model_dump_json()`
+
+This is one of the most important things to remember.
+
+### `model_dump()`
+
+```python
+patient.model_dump()
+```
+
+Returns:
+
+```text
+Python dictionary
+```
+
+Type:
+
+```python
+dict
+```
+
+### `model_dump_json()`
+
+```python
+patient.model_dump_json()
+```
+
+Returns:
+
+```text
+JSON string
+```
+
+Type:
+
+```python
+str
+```
+
+So:
+
+```text
+Pydantic Model
+     |
+     +---- model_dump() ------> dict
+     |
+     +---- model_dump_json() -> JSON string
+```
+
+---
+
+# `model_dump(mode="json")`
+
+This:
+
+```python
+patient.model_dump(mode="json")
+```
+
+still returns a dictionary.
+
+It tells Pydantic to produce values that are suitable for JSON serialization.
+
+So don't confuse:
+
+```python
+model_dump(mode="json")
+```
+
+with:
+
+```python
+model_dump_json()
+```
+
+The first returns a dictionary.
+
+The second returns a JSON string.
+
+---
+
+# `include`
+
+Example:
+
+```python
+patient.model_dump(
+    include={"name", "age"}
+)
+```
+
+Output:
+
+```python
+{
+    "name": "John Doe",
+    "age": 30
+}
+```
+
+Think:
+
+```text
+include = "What do I want?"
+```
+
+---
+
+# `exclude`
+
+Example:
+
+```python
+patient.model_dump(
+    exclude={"address"}
+)
+```
+
+Output:
+
+```python
+{
+    "name": "John Doe",
+    "gender": "male",
+    "age": 30
+}
+```
+
+Think:
+
+```text
+exclude = "What do I NOT want?"
+```
+
+---
+
+# Useful `model_dump()` Cheat Sheet
+
+```python
+# Everything
+patient.model_dump()
+
+# JSON-compatible dictionary
+patient.model_dump(mode="json")
+
+# JSON string
+patient.model_dump_json()
+
+# Only selected fields
+patient.model_dump(
+    include={"name", "age"}
+)
+
+# Everything except selected fields
+patient.model_dump(
+    exclude={"address"}
+)
+
+# Only explicitly provided fields
+patient.model_dump(
+    exclude_unset=True
+)
+
+# Remove fields equal to their defaults
+patient.model_dump(
+    exclude_defaults=True
+)
+
+# Remove fields whose value is None
+patient.model_dump(
+    exclude_none=True
+)
+```
+
+---
+
+# Complete Program
+
+```python
+from pydantic import BaseModel
+
+
+class Address(BaseModel):
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+
+
+class Patient(BaseModel):
+
+    name: str
+    gender: str = "male"
+    age: int
+    address: Address
+
+
+address_dict = {
+    "city": "New York",
+    "state": "NY",
+    "street": "123 Main St",
+    "zip_code": "10001"
+}
+
+
+patient_dict = {
+    "name": "John Doe",
+    "age": 30,
+    "address": address_dict
+}
+
+
+patient = Patient(**patient_dict)
+
+print(patient)
+
+
+# Convert Pydantic model into a Python dictionary
+temp = patient.model_dump()
+
+print(temp)
+print(type(temp))
+
+
+# Convert Pydantic model into a JSON string
+temp = patient.model_dump_json()
+
+print(temp)
+print(type(temp))
+
+
+# JSON-compatible dictionary
+temp = patient.model_dump(mode="json")
+
+print(temp)
+print(type(temp))
+
+
+# Include only selected fields
+temp = patient.model_dump(
+    include={"name", "age"}
+)
+
+print(temp)
+
+
+# Exclude selected fields
+temp = patient.model_dump(
+    exclude={"address"}
+)
+
+print(temp)
+
+
+# Include only explicitly provided fields
+temp = patient.model_dump(
+    exclude_unset=True
+)
+
+print(temp)
+```
+
+---
+
+# Main Concept
+
+The most important part of your current code is:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+Your model has:
+
+```python
+gender: str = "male"
+```
+
+but the input dictionary does not contain `gender`.
+
+Pydantic still creates:
+
+```text
+patient.gender
+        ↓
+"male"
+```
+
+However, `gender` was not explicitly set by the input.
+
+Therefore:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+does not include it.
+
+---
+
+# Easy Way to Remember
+
+```text
+model_dump()
+    ↓
+Give me the model as a dictionary
+
+model_dump_json()
+    ↓
+Give me the model as a JSON string
+
+include
+    ↓
+Only these fields
+
+exclude
+    ↓
+Everything except these fields
+
+exclude_unset
+    ↓
+Only fields explicitly provided
+
+exclude_defaults
+    ↓
+Remove fields equal to their defaults
+
+exclude_none
+    ↓
+Remove fields whose value is None
+```
+
+---
+
+# One More Important Point
+
+These are three different concepts:
+
+```text
+Field exists in the model
+        ≠
+Field has a non-None value
+        ≠
+Field was explicitly provided
+```
+
+In your example:
+
+```text
+gender exists in model        → Yes
+gender has value "male"       → Yes
+gender was provided by user   → No
+```
+
+That's why:
+
+```python
+patient.model_dump()
+```
+
+includes `gender`, while:
+
+```python
+patient.model_dump(exclude_unset=True)
+```
+
+doesn't.
+
+This distinction becomes very useful when working with **FastAPI PATCH/update APIs**, where you often want to update only the fields the user actually sent.
