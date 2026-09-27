@@ -1,4 +1,4 @@
-from pydantic  import BaseModel,Field,AnyUrl,EmailStr,FieldValidationInfo,field_validator
+from pydantic  import BaseModel,Field,AnyUrl,EmailStr,FieldValidationInfo,field_validator,model_validator
 from typing import Optional,List ,Dict,Annotated
 class Patient(BaseModel):
     name:str
@@ -8,34 +8,13 @@ class Patient(BaseModel):
     married:Optional[bool]
     allergies:List[str]
     contact_details:Dict[str,str]
+    @model_validator(mode='after')
+    def validate_emergency_contact(cls,model):
+        if model.age >60 and 'emergency ' not in model.contact_details:
+            raise ValueError("Patients older than 60 must have an emergency contact in their contact details.")
+        return model
 
-    @field_validator('email')
-    @classmethod
-    def email_validator(cls,value):
-        valid_domains=["hdfc.com","gmail.com","yahoo.com","icici.com"]
-        #abc@gmail.com
-        domain_name=value.split("@")[-1]
-        if domain_name not in valid_domains:
-            raise ValueError(f"Invalid email domain: {domain_name}. Allowed domains are: {valid_domains}")
-        return value
-    @field_validator('name')
-    @classmethod
-    def transform_name(cls,value):
-        return value.upper()
-    # @field_validator('age',mode='before')
-    # @classmethod
-    # def validate_age(cls,value):
-    #     if value < 0:
-    #         raise ValueError("Age cannot be negative.")
-    #     return value
-    @field_validator('age',mode='after')
-    @classmethod
-    def transform_age(cls,value):
-        if 0<value<100:
-            return value
-        else:
-            raise ValueError("Age must be between 0 and 100.")
-        
+
 
 def update_patient_data(existing_patient:Patient):
     print(existing_patient.name)
@@ -62,7 +41,8 @@ patient_info = {
     "allergies": ["penicillin", "shellfish"],
     "contact_details": {
         "phone": "123-456-7890",
-        "address": "123 Main St, Anytown, USA"
+        "address": "123 Main St, Anytown, USA",
+        "emergency": "123-456-7890"
     }
 }
 patient1=Patient(**patient_info)
