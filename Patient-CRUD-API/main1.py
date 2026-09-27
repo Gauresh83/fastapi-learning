@@ -12,8 +12,7 @@ def home():
 @app.get('/about')
 def about():
     return {"message": "This is a FastAPI application created for learning purposes."}  
-
-
+c
 @app.get('/view')
 def view():
     data=load_data()
