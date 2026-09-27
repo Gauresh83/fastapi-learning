@@ -1,0 +1,1063 @@
+# Pydantic Computed Field
+
+## What is a Computed Field?
+
+A **computed field** is a value that is calculated from other fields in a Pydantic model.
+
+The value is not directly provided by the user.
+
+For example, in a patient model we have:
+
+```python
+weight: float
+height: float
+```
+
+We can calculate BMI from these two values:
+
+```text
+BMI = weight / height²
+```
+
+Instead of asking the user to provide BMI, we calculate it automatically.
+
+Pydantic provides:
+
+```python
+@computed_field
+```
+
+for this purpose.
+
+---
+
+# Importing `computed_field`
+
+```python
+from pydantic import computed_field
+```
+
+It is used when a value should be calculated from existing model data.
+
+---
+
+# Basic Syntax
+
+The common pattern is:
+
+```python
+@computed_field
+@property
+def field_name(self) -> return_type:
+    # calculation
+    return result
+```
+
+Example:
+
+```python
+@computed_field
+@property
+def calculate_bmi(self) -> float:
+    return round(self.weight / (self.height ** 2), 2)
+```
+
+Here:
+
+* `@computed_field` tells Pydantic this calculated value should be treated as a model field.
+* `@property` allows us to access the calculation like an attribute.
+* `self` represents the current `Patient` object.
+* `-> float` says the result is expected to be a float.
+
+---
+
+# What is `@property`?
+
+Normally, a method is called using parentheses:
+
+```python
+patient.calculate_bmi()
+```
+
+But when we use:
+
+```python
+@property
+```
+
+we can access it like an attribute:
+
+```python
+patient.calculate_bmi
+```
+
+For example:
+
+```python
+class Patient:
+
+    @property
+    def calculate_bmi(self):
+        return self.weight / (self.height ** 2)
+```
+
+Then:
+
+```python
+patient.calculate_bmi
+```
+
+runs the method automatically.
+
+We don't need:
+
+```python
+patient.calculate_bmi()
+```
+
+---
+
+# Why Use `@computed_field`?
+
+`@property` alone creates a calculated property, but Pydantic doesn't treat a normal property as a model field for serialization/schema purposes.
+
+Adding:
+
+```python
+@computed_field
+```
+
+tells Pydantic:
+
+> Include this computed value as part of the model's fields when appropriate, such as when dumping/serializing the model.
+
+So:
+
+```python
+@computed_field
+@property
+def calculate_bmi(self):
+```
+
+means:
+
+```text
+Calculate the value
+        +
+Treat it as a Pydantic computed field
+```
+
+---
+
+# Your Patient Model
+
+Your model contains:
+
+```python
+class Patient(BaseModel):
+    name: str
+    email: EmailStr
+    age: int
+    weight: float
+    height: float
+    married: Optional[bool]
+    allergies: List[str]
+    contact_details: Dict[str, str]
+```
+
+The important fields for BMI are:
+
+```python
+weight: float
+height: float
+```
+
+BMI is calculated from these two values.
+
+---
+
+# BMI Formula
+
+The BMI formula is:
+
+```text
+BMI = weight / height²
+```
+
+where:
+
+```text
+weight = kilograms
+height = meters
+```
+
+For your patient:
+
+```text
+weight = 70.5 kg
+height = 1.75 m
+```
+
+Therefore:
+
+```text
+BMI = 70.5 / (1.75²)
+```
+
+which is approximately:
+
+```text
+23.02
+```
+
+---
+
+# The Computed Field in Your Code
+
+Your code:
+
+```python
+@computed_field
+@property
+def calculate_bmi(self) -> float:
+    bmi = round(self.weight / (self.height ** 2), 2)
+    return bmi
+```
+
+Let's understand each part.
+
+---
+
+# `@computed_field`
+
+```python
+@computed_field
+```
+
+This tells Pydantic that `calculate_bmi` should be considered a computed field.
+
+It is calculated from existing model data rather than being supplied directly as input.
+
+---
+
+# `@property`
+
+```python
+@property
+```
+
+This allows us to access the method without parentheses.
+
+Instead of:
+
+```python
+patient.calculate_bmi()
+```
+
+we use:
+
+```python
+patient.calculate_bmi
+```
+
+---
+
+# `self`
+
+```python
+def calculate_bmi(self)
+```
+
+`self` represents the current `Patient` object.
+
+Because `self` is the patient object, we can access:
+
+```python
+self.weight
+self.height
+self.age
+self.name
+```
+
+For example:
+
+```python
+self.weight
+```
+
+returns:
+
+```text
+70.5
+```
+
+and:
+
+```python
+self.height
+```
+
+returns:
+
+```text
+1.75
+```
+
+---
+
+# `self.weight`
+
+```python
+self.weight
+```
+
+gets the weight from the current patient.
+
+In your example:
+
+```text
+self.weight = 70.5
+```
+
+---
+
+# `self.height`
+
+```python
+self.height
+```
+
+gets the height from the current patient.
+
+In your example:
+
+```text
+self.height = 1.75
+```
+
+---
+
+# `**` Operator
+
+This part:
+
+```python
+self.height ** 2
+```
+
+means:
+
+```text
+height × height
+```
+
+For example:
+
+```text
+1.75² = 3.0625
+```
+
+So:
+
+```python
+self.weight / (self.height ** 2)
+```
+
+becomes:
+
+```text
+70.5 / 3.0625
+```
+
+which is approximately:
+
+```text
+23.02
+```
+
+---
+
+# `round()`
+
+Your code uses:
+
+```python
+round(..., 2)
+```
+
+This rounds the result to two decimal places.
+
+For example:
+
+```python
+round(23.020408, 2)
+```
+
+returns:
+
+```text
+23.02
+```
+
+Without `round()` the result may contain more decimal places.
+
+---
+
+# Return Value
+
+Finally:
+
+```python
+return bmi
+```
+
+returns the calculated BMI.
+
+So:
+
+```python
+patient1.calculate_bmi
+```
+
+returns:
+
+```text
+23.02
+```
+
+---
+
+# Important Difference: Normal Field vs Computed Field
+
+A normal Pydantic field is provided as input.
+
+Example:
+
+```python
+weight: float
+height: float
+```
+
+The user provides:
+
+```json
+{
+    "weight": 70.5,
+    "height": 1.75
+}
+```
+
+A computed field is calculated automatically:
+
+```text
+weight + height
+      ↓
+calculate_bmi
+      ↓
+23.02
+```
+
+The user doesn't need to send:
+
+```json
+{
+    "bmi": 23.02
+}
+```
+
+---
+
+# BMI Is Not Required in `patient_info`
+
+Notice your dictionary:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "age": 30,
+    "weight": 70.5,
+    "height": 1.75,
+    "married": True,
+    "email": "john.doe@hdfc.com",
+    "allergies": ["penicillin", "shellfish"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA",
+        "emergency": "123-456-7890"
+    }
+}
+```
+
+There is no:
+
+```python
+"calculate_bmi": ...
+```
+
+This is correct.
+
+BMI is calculated automatically from:
+
+```text
+weight
+height
+```
+
+---
+
+# Creating the Patient
+
+This line:
+
+```python
+patient1 = Patient(**patient_info)
+```
+
+creates the Pydantic object.
+
+At this point we have:
+
+```text
+name       → John Doe
+age        → 30
+weight     → 70.5
+height     → 1.75
+married    → True
+email      → john.doe@hdfc.com
+allergies  → ["penicillin", "shellfish"]
+contacts   → {...}
+```
+
+BMI can then be calculated whenever we access:
+
+```python
+patient1.calculate_bmi
+```
+
+---
+
+# Calling the Computed Field
+
+Your function contains:
+
+```python
+print("BMI", existing_patient.calculate_bmi)
+```
+
+This accesses the computed property.
+
+Because of:
+
+```python
+@property
+```
+
+we don't use:
+
+```python
+existing_patient.calculate_bmi()
+```
+
+Instead:
+
+```python
+existing_patient.calculate_bmi
+```
+
+is enough.
+
+---
+
+# Complete Flow
+
+The program works approximately like this:
+
+```text
+patient_info
+     |
+     v
+Patient(**patient_info)
+     |
+     v
+Pydantic Patient object
+     |
+     +-------------------+
+     |                   |
+     v                   v
+ weight = 70.5       height = 1.75
+     |                   |
+     +---------+---------+
+               |
+               v
+       calculate_bmi
+               |
+               v
+       70.5 / 1.75²
+               |
+               v
+             23.02
+```
+
+---
+
+# Computed Field vs Field
+
+## Normal Field
+
+```python
+weight: float
+```
+
+The value comes from the input.
+
+```json
+{
+    "weight": 70.5
+}
+```
+
+## Computed Field
+
+```python
+@computed_field
+@property
+def calculate_bmi(self) -> float:
+    return round(self.weight / self.height ** 2, 2)
+```
+
+The value is calculated from existing fields.
+
+```text
+weight + height
+       ↓
+      BMI
+```
+
+---
+
+# Computed Field vs Validator
+
+These two concepts are different.
+
+## Validator
+
+A validator is generally used to:
+
+* Check whether data is valid
+* Reject invalid data
+* Normalize/transform input
+
+Example:
+
+```python
+@field_validator("age")
+@classmethod
+def validate_age(cls, value):
+    if value < 0:
+        raise ValueError("Age cannot be negative.")
+
+    return value
+```
+
+The validator answers:
+
+> Is this data valid?
+
+---
+
+## Computed Field
+
+A computed field calculates a value.
+
+Example:
+
+```python
+@computed_field
+@property
+def calculate_bmi(self) -> float:
+    return round(self.weight / self.height ** 2, 2)
+```
+
+It answers:
+
+> What value can I calculate from the existing data?
+
+---
+
+# Simple Difference
+
+```text
+Validator
+    ↓
+Check / clean / transform data
+
+Computed Field
+    ↓
+Calculate a value from existing data
+```
+
+---
+
+# Computed Field vs Model Validator
+
+A model validator can check relationships between multiple fields.
+
+Example:
+
+```python
+@model_validator(mode="after")
+def validate_patient(self):
+    if self.age > 60 and "emergency" not in self.contact_details:
+        raise ValueError("Emergency contact required.")
+
+    return self
+```
+
+This validates a rule.
+
+A computed field calculates something:
+
+```python
+@computed_field
+@property
+def calculate_bmi(self) -> float:
+    return round(self.weight / self.height ** 2, 2)
+```
+
+So:
+
+```text
+model_validator
+    ↓
+Check if model is valid
+
+computed_field
+    ↓
+Calculate information from model
+```
+
+---
+
+# Computed Fields and `model_dump()`
+
+One useful feature of `computed_field` is that Pydantic can include the computed value when serializing the model.
+
+For example:
+
+```python
+patient1.model_dump()
+```
+
+can include the computed field:
+
+```python
+{
+    "name": "John Doe",
+    "email": "john.doe@hdfc.com",
+    "age": 30,
+    "weight": 70.5,
+    "height": 1.75,
+    "married": True,
+    "allergies": ["penicillin", "shellfish"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA",
+        "emergency": "123-456-7890"
+    },
+    "calculate_bmi": 23.02
+}
+```
+
+The exact output depends on how the model is serialized, but the important point is that `computed_field` makes the calculated property part of Pydantic's serialization/schema handling.
+
+---
+
+# Why This Is Useful in FastAPI
+
+Computed fields are useful when an API needs to return information that can be calculated from stored data.
+
+For example:
+
+```text
+Database
+    |
+    +---- weight
+    |
+    +---- height
+    |
+    v
+Patient model
+    |
+    v
+Computed BMI
+    |
+    v
+API response
+```
+
+The client doesn't need to calculate BMI itself.
+
+The backend can calculate it.
+
+---
+
+# Example API
+
+A FastAPI endpoint could look like:
+
+```python
+@app.get("/patient")
+def get_patient():
+    return patient1
+```
+
+The response can contain the calculated BMI because it is defined as a Pydantic computed field.
+
+---
+
+# Important Point About Computed Fields
+
+A computed field is generally **read-only from the model's point of view**.
+
+You don't normally provide it during model creation:
+
+```python
+Patient(
+    name="John",
+    weight=70.5,
+    height=1.75,
+    calculate_bmi=23.02
+)
+```
+
+Instead, Pydantic calculates it:
+
+```python
+patient.calculate_bmi
+```
+
+---
+
+# Your `update_patient_data()` Function
+
+Your function:
+
+```python
+def update_patient_data(existing_patient: Patient):
+```
+
+takes a `Patient` object.
+
+Then:
+
+```python
+print(existing_patient.name)
+print(existing_patient.age)
+print(existing_patient.weight)
+print("BMI", existing_patient.calculate_bmi)
+```
+
+The BMI is calculated when `calculate_bmi` is accessed.
+
+For your data:
+
+```text
+weight = 70.5 kg
+height = 1.75 m
+```
+
+Therefore:
+
+```text
+BMI = 70.5 / (1.75²)
+    = 23.02
+```
+
+---
+
+# Expected Output
+
+The output will be approximately:
+
+```text
+John Doe
+30
+70.5
+BMI 23.02
+True
+['penicillin', 'shellfish']
+{
+    'phone': '123-456-7890',
+    'address': '123 Main St, Anytown, USA',
+    'emergency': '123-456-7890'
+}
+Patient data updated successfully.
+```
+
+---
+
+# Complete Code
+
+```python
+from pydantic import BaseModel, Field, AnyUrl, EmailStr, computed_field
+from typing import Optional, List, Dict, Annotated
+
+
+class Patient(BaseModel):
+
+    name: str
+    email: EmailStr
+    age: int
+    weight: float
+    height: float
+    married: Optional[bool]
+    allergies: List[str]
+    contact_details: Dict[str, str]
+
+    @computed_field
+    @property
+    def calculate_bmi(self) -> float:
+        bmi = round(self.weight / (self.height ** 2), 2)
+        return bmi
+
+
+def update_patient_data(existing_patient: Patient):
+
+    print(existing_patient.name)
+    print(existing_patient.age)
+    print(existing_patient.weight)
+    print("BMI", existing_patient.calculate_bmi)
+    print(existing_patient.married)
+    print(existing_patient.allergies)
+    print(existing_patient.contact_details)
+
+    print("Patient data updated successfully.")
+
+
+patient_info = {
+    "name": "John Doe",
+    "age": 30,
+    "weight": 70.5,
+    "height": 1.75,
+    "married": True,
+    "email": "john.doe@hdfc.com",
+    "allergies": ["penicillin", "shellfish"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA",
+        "emergency": "123-456-7890"
+    }
+}
+
+
+patient1 = Patient(**patient_info)
+
+update_patient_data(patient1)
+```
+
+---
+
+# One Small Cleanup
+
+Your original import is:
+
+```python
+from pydantic import BaseModel, Field, AnyUrl, EmailStr, FieldValidationInfo, field_validator, model_validator, computed_field
+```
+
+But in this particular code, you aren't using:
+
+```text
+Field
+AnyUrl
+FieldValidationInfo
+field_validator
+model_validator
+```
+
+So they can be removed.
+
+You also don't need `Annotated` here.
+
+A cleaner import is:
+
+```python
+from pydantic import BaseModel, EmailStr, computed_field
+from typing import Optional, List, Dict
+```
+
+---
+
+# Quick Cheat Sheet
+
+```text
+BaseModel
+    → Creates a Pydantic model
+
+Field
+    → Adds constraints/metadata
+
+Annotated
+    → Combines a type with metadata
+
+Optional
+    → Allows None
+
+EmailStr
+    → Validates email addresses
+
+AnyUrl
+    → Validates URLs
+
+field_validator
+    → Validates one field
+
+model_validator
+    → Validates multiple fields/model-level rules
+
+computed_field
+    → Creates a calculated Pydantic field
+
+@property
+    → Allows method to be accessed like an attribute
+
+self
+    → Current model object
+
+model_dump()
+    → Converts model to dictionary
+
+model_dump_json()
+    → Converts model to JSON
+```
+
+## The main idea
+
+```text
+Normal Field
+    ↓
+Value comes from user/input
+
+Validator
+    ↓
+Check or transform input
+
+Model Validator
+    ↓
+Check relationship between fields
+
+Computed Field
+    ↓
+Calculate a new value from existing fields
+```
+
+For your example:
+
+```text
+weight = 70.5
+height = 1.75
+       ↓
+computed_field
+       ↓
+BMI = 23.02
+```
