@@ -1,0 +1,959 @@
+# Pydantic Nested Models
+
+## What is a Nested Model?
+
+A nested Pydantic model means using one Pydantic model as a field inside another Pydantic model.
+
+For example, a patient can have an address.
+
+Instead of putting all address fields directly inside `Patient`, we can create a separate `Address` model and use it inside `Patient`.
+
+```python
+class Address(BaseModel):
+    street: str
+    city: str
+    state: str
+    zip_code: str
+```
+
+Then:
+
+```python
+class Patient(BaseModel):
+    name: str
+    gender: str
+    age: int
+    address: Address
+```
+
+Here:
+
+```text
+Patient
+   |
+   +-- name
+   +-- gender
+   +-- age
+   |
+   +-- address
+          |
+          +-- street
+          +-- city
+          +-- state
+          +-- zip_code
+```
+
+So `Address` is a nested model inside `Patient`.
+
+---
+
+# BaseModel
+
+```python
+from pydantic import BaseModel
+```
+
+`BaseModel` is the base class used to create Pydantic models.
+
+Example:
+
+```python
+class Address(BaseModel):
+    street: str
+    city: str
+```
+
+Because `Address` inherits from `BaseModel`, Pydantic validates the address data.
+
+---
+
+# Address Model
+
+Your code defines:
+
+```python
+class Address(BaseModel):
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+```
+
+This model describes the structure of an address.
+
+It expects four fields:
+
+```text
+street   -> string
+city     -> string
+state    -> string
+zip_code -> string
+```
+
+Example:
+
+```python
+address = Address(
+    street="123 Main St",
+    city="New York",
+    state="NY",
+    zip_code="10001"
+)
+```
+
+---
+
+# Patient Model
+
+The patient model is:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str
+    age: int
+    address: Address
+```
+
+The important part is:
+
+```python
+address: Address
+```
+
+This means:
+
+> The `address` field must contain an `Address` model.
+
+So `address` is not just a normal string or dictionary in the final Pydantic model. It represents an `Address` object.
+
+---
+
+# Why Use Nested Models?
+
+Suppose we don't use a nested model.
+
+We could write:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    gender: str
+    age: int
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+```
+
+This works, but it becomes difficult to manage when the address has many fields.
+
+Using a separate model is cleaner:
+
+```python
+class Address(BaseModel):
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+
+
+class Patient(BaseModel):
+
+    name: str
+    gender: str
+    age: int
+    address: Address
+```
+
+Now the address has its own structure.
+
+---
+
+# Creating Address Data
+
+You have:
+
+```python
+address_dict = {
+    "city": "New York",
+    "state": "NY",
+    "street": "123 Main St",
+    "zip_code": "10001"
+}
+```
+
+This is a normal Python dictionary.
+
+Its structure is:
+
+```text
+address_dict
+    |
+    +-- city
+    +-- state
+    +-- street
+    +-- zip_code
+```
+
+---
+
+# Creating Patient Data
+
+Then you create:
+
+```python
+patient_info = {
+
+    "name": "John Doe",
+
+    "gender": "Male",
+
+    "age": 30,
+
+    "address": address_dict
+}
+```
+
+The important part is:
+
+```python
+"address": address_dict
+```
+
+The value of `address` is itself a dictionary.
+
+So this is nested data.
+
+Conceptually:
+
+```text
+patient_info
+    |
+    +-- name
+    +-- gender
+    +-- age
+    |
+    +-- address
+          |
+          +-- city
+          +-- state
+          +-- street
+          +-- zip_code
+```
+
+---
+
+# Creating the Patient Object
+
+You create the model using:
+
+```python
+patient = Patient(**patient_info)
+```
+
+The `**` operator unpacks the dictionary.
+
+This:
+
+```python
+Patient(**patient_info)
+```
+
+is similar to:
+
+```python
+Patient(
+    name="John Doe",
+    gender="Male",
+    age=30,
+    address=address_dict
+)
+```
+
+---
+
+# What Pydantic Does With the Nested Dictionary
+
+This is an important part.
+
+You provide:
+
+```python
+"address": address_dict
+```
+
+where `address_dict` is a normal dictionary.
+
+But the model says:
+
+```python
+address: Address
+```
+
+Pydantic sees that the field expects an `Address` model and validates the dictionary against the `Address` model.
+
+Conceptually:
+
+```text
+address_dict
+     |
+     v
+Address model validation
+     |
+     v
+Address object
+     |
+     v
+Patient object
+```
+
+So the final `patient.address` is an `Address` model.
+
+---
+
+# Nested Validation
+
+Pydantic validates both levels.
+
+First, it validates the patient:
+
+```text
+Patient
+├── name -> str
+├── gender -> str
+├── age -> int
+└── address -> Address
+```
+
+Then it validates the nested address:
+
+```text
+Address
+├── street -> str
+├── city -> str
+├── state -> str
+└── zip_code -> str
+```
+
+If any required field is missing or has an invalid type, Pydantic raises a validation error.
+
+---
+
+# Example of Invalid Nested Data
+
+Suppose:
+
+```python
+address_dict = {
+    "city": "New York",
+    "state": "NY",
+    "street": "123 Main St"
+}
+```
+
+The `zip_code` field is missing.
+
+But `Address` requires:
+
+```python
+zip_code: str
+```
+
+Therefore, creating the `Patient` will fail validation.
+
+The error comes from the nested `Address` model.
+
+---
+
+# Accessing Nested Model Attributes
+
+After creating:
+
+```python
+patient = Patient(**patient_info)
+```
+
+we can access the patient's normal fields:
+
+```python
+patient.name
+patient.gender
+patient.age
+```
+
+For the nested address, we can use:
+
+```python
+patient.address
+```
+
+This gives us the `Address` object.
+
+---
+
+# Accessing City
+
+Your code:
+
+```python
+print(patient.address.city)
+```
+
+works in two steps.
+
+First:
+
+```python
+patient.address
+```
+
+gets the nested `Address` object.
+
+Then:
+
+```python
+patient.address.city
+```
+
+gets the `city` field from that object.
+
+So:
+
+```text
+patient
+   |
+   +-- address
+          |
+          +-- city
+```
+
+Output:
+
+```text
+New York
+```
+
+---
+
+# Accessing Zip Code
+
+Similarly:
+
+```python
+print(patient.address.zip_code)
+```
+
+means:
+
+```text
+patient
+   |
+   +-- address
+          |
+          +-- zip_code
+```
+
+Output:
+
+```text
+10001
+```
+
+---
+
+# Dot Notation
+
+Nested models make dot notation very useful.
+
+For example:
+
+```python
+patient.name
+```
+
+gets the patient's name.
+
+```python
+patient.address.city
+```
+
+gets the city.
+
+```python
+patient.address.state
+```
+
+gets the state.
+
+```python
+patient.address.street
+```
+
+gets the street.
+
+```python
+patient.address.zip_code
+```
+
+gets the ZIP code.
+
+---
+
+# Complete Object Structure
+
+After:
+
+```python
+patient = Patient(**patient_info)
+```
+
+the object can be visualized as:
+
+```text
+Patient
+│
+├── name = "John Doe"
+│
+├── gender = "Male"
+│
+├── age = 30
+│
+└── address
+     │
+     └── Address
+          │
+          ├── street = "123 Main St"
+          ├── city = "New York"
+          ├── state = "NY"
+          └── zip_code = "10001"
+```
+
+---
+
+# Expected Output
+
+When you run:
+
+```python
+print(patient)
+
+print(patient.address.city)
+
+print(patient.address.zip_code)
+```
+
+the output will be similar to:
+
+```text
+name='John Doe' gender='Male' age=30 address=Address(street='123 Main St', city='New York', state='NY', zip_code='10001')
+
+New York
+
+10001
+```
+
+The exact representation may vary slightly depending on the Pydantic version.
+
+---
+
+# Nested Models in FastAPI
+
+Nested models are especially useful in FastAPI.
+
+For example:
+
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.post("/patients")
+def create_patient(patient: Patient):
+    return patient
+```
+
+A request can contain nested JSON:
+
+```json
+{
+    "name": "John Doe",
+    "gender": "Male",
+    "age": 30,
+    "address": {
+        "street": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "zip_code": "10001"
+    }
+}
+```
+
+FastAPI passes the request to Pydantic.
+
+Pydantic validates:
+
+```text
+Patient
+    |
+    +-- name
+    +-- gender
+    +-- age
+    |
+    +-- Address
+          |
+          +-- street
+          +-- city
+          +-- state
+          +-- zip_code
+```
+
+If the data is valid, the endpoint receives a `Patient` object.
+
+---
+
+# Why Nested Models Are Useful
+
+Nested models are useful when data has a natural hierarchy.
+
+Examples:
+
+## Patient
+
+```text
+Patient
+└── Address
+```
+
+## Company
+
+```text
+Company
+├── name
+├── email
+└── address
+```
+
+## Order
+
+```text
+Order
+├── order_id
+├── customer
+│    ├── name
+│    └── email
+└── product
+     ├── name
+     └── price
+```
+
+## User
+
+```text
+User
+├── name
+├── profile
+│    ├── age
+│    ├── bio
+│    └── location
+└── contact
+     ├── email
+     └── phone
+```
+
+Each part can be represented using its own Pydantic model.
+
+---
+
+# Nested Model vs Dictionary
+
+Without nested models:
+
+```python
+patient["address"]["city"]
+```
+
+With a Pydantic nested model:
+
+```python
+patient.address.city
+```
+
+The second approach is easier to work with because Pydantic provides validation and structured types.
+
+---
+
+# Nested Model Validation
+
+Consider:
+
+```python
+class Address(BaseModel):
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+```
+
+If someone sends:
+
+```json
+{
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY"
+}
+```
+
+`zip_code` is missing.
+
+Pydantic will reject the data because:
+
+```python
+zip_code: str
+```
+
+is a required field.
+
+---
+
+# Type Validation in Nested Models
+
+Suppose the input is:
+
+```python
+address_dict = {
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY",
+    "zip_code": 10001
+}
+```
+
+Here:
+
+```python
+zip_code = 10001
+```
+
+is an integer.
+
+But the model says:
+
+```python
+zip_code: str
+```
+
+Pydantic performs its normal validation rules for that field. If strict validation is required, it can be explicitly configured.
+
+The important point is that the nested model has its own validation rules independent of the parent model.
+
+---
+
+# `ValidationError`
+
+You imported:
+
+```python
+from pydantic import BaseModel, ValidationError, Field
+```
+
+`ValidationError` is used to handle validation errors raised by Pydantic.
+
+Example:
+
+```python
+try:
+    patient = Patient(**patient_info)
+except ValidationError as e:
+    print(e)
+```
+
+If the patient data or nested address data is invalid, the error can be caught.
+
+---
+
+# Example With Error Handling
+
+```python
+try:
+
+    patient = Patient(**patient_info)
+
+    print(patient)
+
+except ValidationError as e:
+
+    print("Validation error:")
+    print(e)
+```
+
+This prevents the program from stopping immediately when invalid data is provided.
+
+---
+
+# `Field`
+
+You imported:
+
+```python
+from pydantic import Field
+```
+
+But in your current code, you aren't actually using `Field`.
+
+So this import can be removed:
+
+```python
+from pydantic import Field
+```
+
+Your current code only needs:
+
+```python
+from pydantic import BaseModel
+```
+
+If you want to add constraints later, then `Field` becomes useful.
+
+For example:
+
+```python
+age: int = Field(ge=0, le=120)
+```
+
+---
+
+# Complete Clean Version
+
+```python
+from pydantic import BaseModel
+
+
+class Address(BaseModel):
+
+    street: str
+    city: str
+    state: str
+    zip_code: str
+
+
+class Patient(BaseModel):
+
+    name: str
+    gender: str
+    age: int
+    address: Address
+
+
+address_dict = {
+    "city": "New York",
+    "state": "NY",
+    "street": "123 Main St",
+    "zip_code": "10001"
+}
+
+
+patient_info = {
+
+    "name": "John Doe",
+
+    "gender": "Male",
+
+    "age": 30,
+
+    "address": address_dict
+}
+
+
+patient = Patient(**patient_info)
+
+
+print(patient)
+
+print(patient.address.city)
+
+print(patient.address.zip_code)
+```
+
+---
+
+# Important Concepts to Remember
+
+```text
+BaseModel
+    ↓
+Used to create Pydantic models
+
+Nested Model
+    ↓
+One Pydantic model used inside another model
+
+address: Address
+    ↓
+Patient.address must follow the Address model
+
+Patient(**patient_info)
+    ↓
+Dictionary is unpacked and validated
+
+patient.address
+    ↓
+Returns the nested Address object
+
+patient.address.city
+    ↓
+Accesses city inside the nested Address
+
+patient.address.zip_code
+    ↓
+Accesses zip code inside the nested Address
+
+ValidationError
+    ↓
+Raised when the input doesn't satisfy the model
+```
+
+# Simple Mental Model
+
+The easiest way to remember nested models is:
+
+```text
+Parent Model
+      |
+      +---- Normal Field
+      |
+      +---- Normal Field
+      |
+      +---- Nested Model
+                |
+                +---- Field
+                +---- Field
+                +---- Field
+```
+
+For this example:
+
+```text
+Patient
+   |
+   +-- name
+   +-- gender
+   +-- age
+   |
+   +-- address
+         |
+         +-- street
+         +-- city
+         +-- state
+         +-- zip_code
+```
+
+So whenever you have **structured data inside another piece of structured data**, a nested Pydantic model is a clean way to represent it.
