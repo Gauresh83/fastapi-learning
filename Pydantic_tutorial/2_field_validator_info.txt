@@ -1,0 +1,1568 @@
+# Pydantic Field Validators
+
+## What is a Field Validator?
+
+A field validator is used when we want to add our own validation or transformation logic to a particular field of a Pydantic model.
+
+For example, Pydantic already knows that:
+
+```python
+age: int
+```
+
+should be an integer.
+
+But suppose we also want to make sure that:
+
+```text
+age must be between 1 and 99
+```
+
+or we want to:
+
+```text
+convert the patient's name to uppercase
+```
+
+or:
+
+```text
+allow only specific email domains
+```
+
+For these types of requirements, we can use:
+
+```python
+@field_validator()
+```
+
+---
+
+# Importing `field_validator`
+
+```python
+from pydantic import field_validator
+```
+
+Basic structure:
+
+```python
+@field_validator("field_name")
+@classmethod
+def validator_name(cls, value):
+    # validation or transformation
+    return value
+```
+
+Here:
+
+* `field_name` is the field we want to validate.
+* `cls` refers to the Pydantic model class.
+* `value` contains the value of that field.
+* `return value` returns the validated/transformed value.
+
+---
+
+# Patient Model
+
+The model in this example is:
+
+```python
+class Patient(BaseModel):
+
+    name: str
+    email: EmailStr
+    age: int
+    weight: float
+    married: Optional[bool]
+    allergies: List[str]
+    contact_details: Dict[str, str]
+```
+
+The fields are:
+
+```text
+name
+email
+age
+weight
+married
+allergies
+contact_details
+```
+
+Pydantic first performs its normal type validation based on these type hints.
+
+After that, our custom validators can apply additional rules.
+
+---
+
+# Why Do We Need a Custom Validator?
+
+Suppose we have:
+
+```python
+email: EmailStr
+```
+
+`EmailStr` checks whether the email has a valid email format.
+
+For example:
+
+```text
+john@gmail.com
+john@example.com
+```
+
+But suppose our application has another rule:
+
+> Only `hdfc.com`, `gmail.com`, `yahoo.com`, and `icici.com` are allowed.
+
+`EmailStr` doesn't enforce this particular business rule.
+
+So we create a custom validator.
+
+---
+
+# Email Validator
+
+The code is:
+
+```python
+@field_validator("email")
+@classmethod
+def email_validator(cls, value):
+
+    valid_domains = [
+        "hdfc.com",
+        "gmail.com",
+        "yahoo.com",
+        "icici.com"
+    ]
+
+    domain_name = value.split("@")[-1]
+
+    if domain_name not in valid_domains:
+        raise ValueError(
+            f"Invalid email domain: {domain_name}. "
+            f"Allowed domains are: {valid_domains}"
+        )
+
+    return value
+```
+
+This validator is attached specifically to:
+
+```python
+email
+```
+
+because we wrote:
+
+```python
+@field_validator("email")
+```
+
+---
+
+# How the Email Validator Works
+
+Suppose the input is:
+
+```python
+email = "john.doe@hdfc.com"
+```
+
+The validator receives:
+
+```text
+value = "john.doe@hdfc.com"
+```
+
+Then:
+
+```python
+domain_name = value.split("@")[-1]
+```
+
+is executed.
+
+First:
+
+```python
+value.split("@")
+```
+
+produces:
+
+```python
+["john.doe", "hdfc.com"]
+```
+
+Then:
+
+```python
+[-1]
+```
+
+gets the last item:
+
+```text
+hdfc.com
+```
+
+So:
+
+```python
+domain_name = "hdfc.com"
+```
+
+---
+
+# Checking the Domain
+
+We have:
+
+```python
+valid_domains = [
+    "hdfc.com",
+    "gmail.com",
+    "yahoo.com",
+    "icici.com"
+]
+```
+
+Then:
+
+```python
+if domain_name not in valid_domains:
+```
+
+checks whether the domain is missing from the allowed list.
+
+For:
+
+```text
+john.doe@hdfc.com
+```
+
+the domain is:
+
+```text
+hdfc.com
+```
+
+and:
+
+```python
+"hdfc.com" in valid_domains
+```
+
+is `True`.
+
+So validation succeeds.
+
+---
+
+# Invalid Email Domain
+
+Suppose:
+
+```python
+email = "john.doe@outlook.com"
+```
+
+The domain becomes:
+
+```text
+outlook.com
+```
+
+But:
+
+```text
+outlook.com
+```
+
+is not in the allowed list.
+
+Therefore:
+
+```python
+raise ValueError(...)
+```
+
+is executed.
+
+Pydantic then raises a validation error.
+
+---
+
+# `raise ValueError`
+
+This:
+
+```python
+raise ValueError("Invalid email domain")
+```
+
+means:
+
+> Stop validation because the value doesn't satisfy our rule.
+
+Example:
+
+```python
+if domain_name not in valid_domains:
+    raise ValueError("Invalid email domain")
+```
+
+If the condition is false, no error is raised and validation continues.
+
+---
+
+# Why `return value`?
+
+At the end of a validator we normally return the value:
+
+```python
+return value
+```
+
+This tells Pydantic to use that value in the final model.
+
+For example:
+
+```text
+Input
+  ↓
+Validator
+  ↓
+return value
+  ↓
+Patient object
+```
+
+We can also return a modified value.
+
+For example:
+
+```python
+return value.upper()
+```
+
+This is exactly what we do with the name.
+
+---
+
+# Name Validator
+
+Your code:
+
+```python
+@field_validator("name")
+@classmethod
+def transform_name(cls, value):
+    return value.upper()
+```
+
+This validator is attached to:
+
+```text
+name
+```
+
+It doesn't reject the name.
+
+Instead, it transforms it.
+
+---
+
+# How the Name Validator Works
+
+Input:
+
+```text
+John Doe
+```
+
+The validator receives:
+
+```python
+value = "John Doe"
+```
+
+Then:
+
+```python
+value.upper()
+```
+
+returns:
+
+```text
+JOHN DOE
+```
+
+Therefore:
+
+```python
+patient1.name
+```
+
+will contain:
+
+```text
+JOHN DOE
+```
+
+instead of:
+
+```text
+John Doe
+```
+
+---
+
+# Validation vs Transformation
+
+A field validator can be used for both validation and transformation.
+
+## Validation
+
+Example:
+
+```python
+@field_validator("age")
+@classmethod
+def validate_age(cls, value):
+
+    if value < 0:
+        raise ValueError("Age cannot be negative.")
+
+    return value
+```
+
+This checks whether the value is valid.
+
+---
+
+## Transformation
+
+Example:
+
+```python
+@field_validator("name")
+@classmethod
+def transform_name(cls, value):
+
+    return value.upper()
+```
+
+This changes the value.
+
+So a validator can be thought of as:
+
+```text
+Input
+  ↓
+Check / Clean / Transform
+  ↓
+Return
+```
+
+---
+
+# `@classmethod`
+
+You have:
+
+```python
+@classmethod
+def transform_name(cls, value):
+```
+
+`@classmethod` makes the method a class method.
+
+The first argument is:
+
+```python
+cls
+```
+
+which represents the current class.
+
+In this example:
+
+```text
+cls
+ ↓
+Patient
+```
+
+So inside the validator:
+
+```python
+cls
+```
+
+refers to the `Patient` model.
+
+---
+
+# `cls` vs `self`
+
+This is a common Python concept.
+
+```text
+self → current object
+cls  → current class
+```
+
+For example:
+
+```python
+class Patient:
+
+    def normal_method(self):
+        pass
+
+    @classmethod
+    def class_method(cls):
+        pass
+```
+
+In Pydantic validators, `cls` is commonly used with `@classmethod`.
+
+---
+
+# What is `value`?
+
+In:
+
+```python
+def transform_name(cls, value):
+```
+
+`value` is the current field value.
+
+For the name validator:
+
+```text
+value = "John Doe"
+```
+
+For the age validator:
+
+```text
+value = 30
+```
+
+For the email validator:
+
+```text
+value = "john.doe@hdfc.com"
+```
+
+So `value` changes depending on which field the validator is attached to.
+
+---
+
+# Age Validator
+
+Your code:
+
+```python
+@field_validator("age", mode="after")
+@classmethod
+def transform_age(cls, value):
+
+    if 0 < value < 100:
+        return value
+
+    else:
+        raise ValueError("Age must be between 0 and 100.")
+```
+
+This validator applies to:
+
+```text
+age
+```
+
+and uses:
+
+```python
+mode="after"
+```
+
+---
+
+# What is `mode="after"`?
+
+Pydantic supports different validator modes.
+
+The important ones here are:
+
+```text
+before
+after
+```
+
+`mode="after"` means the validator runs after Pydantic's normal validation for the field.
+
+Conceptually:
+
+```text
+Input
+  ↓
+Pydantic type validation
+  ↓
+Field validator
+  ↓
+Final value
+```
+
+For:
+
+```python
+age: int
+```
+
+Pydantic first validates the value as an integer.
+
+Then your custom age validator runs.
+
+---
+
+# Example of `mode="after"`
+
+Input:
+
+```python
+age = 30
+```
+
+The process is:
+
+```text
+30
+ ↓
+Pydantic validates age as int
+ ↓
+30
+ ↓
+transform_age()
+ ↓
+0 < 30 < 100
+ ↓
+True
+ ↓
+return 30
+```
+
+Final value:
+
+```text
+30
+```
+
+---
+
+# Age Condition
+
+The validator uses:
+
+```python
+if 0 < value < 100:
+```
+
+This is Python's chained comparison.
+
+It means:
+
+```text
+value > 0
+AND
+value < 100
+```
+
+So the allowed values are:
+
+```text
+1
+2
+3
+...
+98
+99
+```
+
+---
+
+# Age = 0
+
+If:
+
+```python
+age = 0
+```
+
+then:
+
+```text
+0 < 0 < 100
+```
+
+is false.
+
+So it raises:
+
+```python
+ValueError
+```
+
+---
+
+# Age = 100
+
+If:
+
+```python
+age = 100
+```
+
+then:
+
+```text
+0 < 100 < 100
+```
+
+is false.
+
+Therefore `100` is also rejected.
+
+Your current validator effectively allows:
+
+```text
+1 to 99
+```
+
+If you want to allow `0` and `100`, you could write:
+
+```python
+if 0 <= value <= 100:
+```
+
+---
+
+# `mode="before"`
+
+Your code also contains a commented validator:
+
+```python
+# @field_validator("age", mode="before")
+# @classmethod
+# def validate_age(cls, value):
+#     if value < 0:
+#         raise ValueError("Age cannot be negative.")
+#     return value
+```
+
+`mode="before"` means the validator runs before Pydantic's normal type validation.
+
+The flow is:
+
+```text
+Raw input
+  ↓
+Before validator
+  ↓
+Pydantic type validation
+  ↓
+Final value
+```
+
+---
+
+# Before vs After
+
+## Before
+
+```python
+@field_validator("age", mode="before")
+```
+
+The validator receives the input before normal Pydantic validation.
+
+This is useful when you want to:
+
+* Clean input
+* Convert input
+* Normalize input
+* Handle different input formats
+
+---
+
+## After
+
+```python
+@field_validator("age", mode="after")
+```
+
+The validator receives the value after Pydantic's normal validation.
+
+This is useful for:
+
+* Business rules
+* Additional validation
+* Checking already typed data
+* Transforming validated data
+
+---
+
+# Simple Difference
+
+```text
+BEFORE
+
+Raw input
+   ↓
+Your validator
+   ↓
+Pydantic validation
+   ↓
+Final value
+```
+
+```text
+AFTER
+
+Raw input
+   ↓
+Pydantic validation
+   ↓
+Your validator
+   ↓
+Final value
+```
+
+---
+
+# Example of Before Validator
+
+Suppose the model says:
+
+```python
+age: int
+```
+
+and input is:
+
+```python
+age = "30"
+```
+
+A `before` validator can see the raw value:
+
+```text
+"30"
+```
+
+which is a string.
+
+Then Pydantic performs its normal validation.
+
+Conceptually:
+
+```text
+"30"
+ ↓
+before validator
+ ↓
+Pydantic
+ ↓
+30
+```
+
+---
+
+# When to Use `before`
+
+A common example is cleaning input:
+
+```python
+@field_validator("name", mode="before")
+@classmethod
+def clean_name(cls, value):
+    return value.strip()
+```
+
+If the input is:
+
+```text
+"  John Doe  "
+```
+
+the validator can convert it to:
+
+```text
+"John Doe"
+```
+
+before normal validation continues.
+
+---
+
+# When to Use `after`
+
+For business rules, `after` is often easier.
+
+Example:
+
+```python
+@field_validator("age", mode="after")
+@classmethod
+def validate_age(cls, value):
+
+    if not 1 <= value <= 99:
+        raise ValueError("Age must be between 1 and 99.")
+
+    return value
+```
+
+At this point, `value` has already passed the normal Pydantic type validation.
+
+---
+
+# Validation Flow of This Program
+
+When this line runs:
+
+```python
+patient1 = Patient(**patient_info)
+```
+
+Pydantic processes the input.
+
+Conceptually:
+
+```text
+patient_info
+      ↓
+Patient(**patient_info)
+      ↓
+Pydantic field validation
+      ↓
+name
+  ↓
+name validator
+  ↓
+.upper()
+  ↓
+JOHN DOE
+
+email
+  ↓
+EmailStr validation
+  ↓
+email validator
+  ↓
+domain check
+
+age
+  ↓
+int validation
+  ↓
+age validator
+  ↓
+0 < age < 100
+      ↓
+Patient object
+```
+
+---
+
+# Complete Input
+
+Your input is:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "age": 30,
+    "weight": 70.5,
+    "married": True,
+    "email": "john.doe@hdfc.com",
+    "allergies": ["penicillin", "shellfish"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA"
+    }
+}
+```
+
+---
+
+# Name Processing
+
+Input:
+
+```text
+John Doe
+```
+
+Validator:
+
+```python
+return value.upper()
+```
+
+Final value:
+
+```text
+JOHN DOE
+```
+
+---
+
+# Email Processing
+
+Input:
+
+```text
+john.doe@hdfc.com
+```
+
+`EmailStr` first checks the email format.
+
+Then the custom validator gets the email.
+
+```python
+domain_name = value.split("@")[-1]
+```
+
+Result:
+
+```text
+hdfc.com
+```
+
+Allowed domains:
+
+```text
+hdfc.com
+gmail.com
+yahoo.com
+icici.com
+```
+
+`hdfc.com` is present, so validation succeeds.
+
+---
+
+# Age Processing
+
+Input:
+
+```text
+30
+```
+
+Pydantic validates it as an integer.
+
+Then:
+
+```python
+if 0 < 30 < 100:
+```
+
+is true.
+
+So:
+
+```python
+return 30
+```
+
+The final age is:
+
+```text
+30
+```
+
+---
+
+# Final Patient Object
+
+After validation, the object is conceptually:
+
+```python
+Patient(
+    name="JOHN DOE",
+    email="john.doe@hdfc.com",
+    age=30,
+    weight=70.5,
+    married=True,
+    allergies=["penicillin", "shellfish"],
+    contact_details={
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA"
+    }
+)
+```
+
+The important change is:
+
+```text
+John Doe
+   ↓
+JOHN DOE
+```
+
+because of the name validator.
+
+---
+
+# `Patient(**patient_info)`
+
+This is also an important Python concept.
+
+Given:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "age": 30
+}
+```
+
+this:
+
+```python
+Patient(**patient_info)
+```
+
+is equivalent to:
+
+```python
+Patient(
+    name="John Doe",
+    age=30
+)
+```
+
+The `**` operator unpacks dictionary key-value pairs as keyword arguments.
+
+---
+
+# Passing the Model to Functions
+
+You have:
+
+```python
+def update_patient_data(existing_patient: Patient):
+```
+
+and:
+
+```python
+def create_patient_data(new_patient: Patient):
+```
+
+The `Patient` after the colon is a type hint.
+
+It tells us that these functions expect a `Patient` object.
+
+For example:
+
+```python
+update_patient_data(patient1)
+```
+
+passes the Pydantic model into the function.
+
+---
+
+# `update_patient_data()`
+
+The function:
+
+```python
+def update_patient_data(existing_patient: Patient):
+
+    print(existing_patient.name)
+    print(existing_patient.age)
+    print(existing_patient.weight)
+    print(existing_patient.married)
+    print(existing_patient.allergies)
+    print(existing_patient.contact_details)
+
+    print("Patient data updated successfully.")
+```
+
+reads values from the Pydantic model.
+
+For example:
+
+```python
+existing_patient.name
+```
+
+returns:
+
+```text
+JOHN DOE
+```
+
+because the name was transformed by the validator.
+
+Important: this function doesn't actually update a database. It only prints the data.
+
+---
+
+# `create_patient_data()`
+
+Similarly:
+
+```python
+def create_patient_data(new_patient: Patient):
+```
+
+receives the same Pydantic model and prints its fields.
+
+It also doesn't actually create a database record. It is just demonstrating how a validated model can be passed to another function.
+
+---
+
+# Expected Output
+
+The output will be approximately:
+
+```text
+JOHN DOE
+30
+70.5
+True
+['penicillin', 'shellfish']
+{
+    'phone': '123-456-7890',
+    'address': '123 Main St, Anytown, USA'
+}
+Patient data updated successfully.
+
+JOHN DOE
+30
+70.5
+True
+['penicillin', 'shellfish']
+{
+    'phone': '123-456-7890',
+    'address': '123 Main St, Anytown, USA'
+}
+Patient data created successfully.
+```
+
+---
+
+# Invalid Data Example
+
+If we change:
+
+```python
+"email": "john.doe@outlook.com"
+```
+
+the custom validator will reject it because:
+
+```text
+outlook.com
+```
+
+is not in:
+
+```python
+[
+    "hdfc.com",
+    "gmail.com",
+    "yahoo.com",
+    "icici.com"
+]
+```
+
+---
+
+# Another Invalid Example
+
+If:
+
+```python
+"age": 150
+```
+
+the age validator rejects it because:
+
+```text
+0 < 150 < 100
+```
+
+is false.
+
+---
+
+# Field Validator vs Model Validator
+
+A `field_validator` is mainly used for a particular field.
+
+Example:
+
+```python
+@field_validator("age")
+```
+
+It focuses on:
+
+```text
+age
+```
+
+A `model_validator` is used when a rule depends on multiple fields.
+
+Example:
+
+```python
+@model_validator(mode="after")
+```
+
+It can check something like:
+
+```text
+age + contact_details
+```
+
+So:
+
+```text
+field_validator
+    ↓
+Check one field
+
+model_validator
+    ↓
+Check relationship between fields
+```
+
+---
+
+# Field Validator vs Computed Field
+
+A validator checks or transforms data.
+
+```python
+@field_validator("name")
+def transform_name(...):
+    return value.upper()
+```
+
+A computed field calculates a new value.
+
+```python
+@computed_field
+@property
+def calculate_bmi(self):
+    return ...
+```
+
+So:
+
+```text
+Validator
+    ↓
+Validate / transform existing data
+
+Computed Field
+    ↓
+Calculate a value from existing data
+```
+
+---
+
+# Clean Version of the Code
+
+Some imports in the original code aren't being used. For this particular example, the imports can be simplified to:
+
+```python
+from pydantic import BaseModel, EmailStr, field_validator
+from typing import Optional, List, Dict
+
+
+class Patient(BaseModel):
+
+    name: str
+    email: EmailStr
+    age: int
+    weight: float
+    married: Optional[bool]
+    allergies: List[str]
+    contact_details: Dict[str, str]
+
+    @field_validator("email")
+    @classmethod
+    def email_validator(cls, value):
+
+        valid_domains = [
+            "hdfc.com",
+            "gmail.com",
+            "yahoo.com",
+            "icici.com"
+        ]
+
+        domain_name = value.split("@")[-1]
+
+        if domain_name not in valid_domains:
+            raise ValueError(
+                f"Invalid email domain: {domain_name}. "
+                f"Allowed domains are: {valid_domains}"
+            )
+
+        return value
+
+    @field_validator("name")
+    @classmethod
+    def transform_name(cls, value):
+        return value.upper()
+
+    @field_validator("age", mode="after")
+    @classmethod
+    def transform_age(cls, value):
+
+        if 0 < value < 100:
+            return value
+
+        raise ValueError("Age must be between 0 and 100.")
+
+
+def update_patient_data(existing_patient: Patient):
+
+    print(existing_patient.name)
+    print(existing_patient.age)
+    print(existing_patient.weight)
+    print(existing_patient.married)
+    print(existing_patient.allergies)
+    print(existing_patient.contact_details)
+
+    print("Patient data updated successfully.")
+
+
+def create_patient_data(new_patient: Patient):
+
+    print(new_patient.name)
+    print(new_patient.age)
+    print(new_patient.weight)
+    print(new_patient.married)
+    print(new_patient.allergies)
+    print(new_patient.contact_details)
+
+    print("Patient data created successfully.")
+
+
+patient_info = {
+    "name": "John Doe",
+    "age": 30,
+    "weight": 70.5,
+    "married": True,
+    "email": "john.doe@hdfc.com",
+    "allergies": ["penicillin", "shellfish"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA"
+    }
+}
+
+
+patient1 = Patient(**patient_info)
+
+update_patient_data(patient1)
+create_patient_data(patient1)
+```
+
+---
+
+# Quick Cheat Sheet
+
+```text
+BaseModel
+    → Creates a Pydantic model
+
+field_validator()
+    → Adds custom validation for a field
+
+@classmethod
+    → Makes the validator a class method
+
+cls
+    → Refers to the model class
+
+value
+    → Current field value
+
+mode="before"
+    → Validator runs before normal Pydantic validation
+
+mode="after"
+    → Validator runs after normal Pydantic validation
+
+raise ValueError()
+    → Rejects invalid data
+
+return value
+    → Accepts the value
+
+return value.upper()
+    → Transforms the value
+
+EmailStr
+    → Validates email format
+
+Optional[T]
+    → T or None
+
+List[str]
+    → List of strings
+
+Dict[str, str]
+    → Dictionary with string keys and values
+
+**dictionary
+    → Unpacks dictionary into keyword arguments
+```
+
+# Easy Way to Remember
+
+```text
+field_validator
+       ↓
+"Check or change this field"
+
+before
+       ↓
+"Do something before Pydantic validates the type"
+
+after
+       ↓
+"Do something after Pydantic validates the type"
+
+raise ValueError
+       ↓
+"This data is invalid"
+
+return value
+       ↓
+"Keep this value"
+
+return value.upper()
+       ↓
+"Keep the modified value"
+```
+
+The main idea of this program is: **Pydantic handles the basic type validation, while `field_validator` lets us add our own application-specific rules or transformations.**
