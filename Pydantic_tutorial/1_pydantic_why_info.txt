@@ -1,0 +1,1121 @@
+# Pydantic Model, Field and Validation
+
+## What is Pydantic?
+
+Pydantic is a Python library used to validate and structure data using Python type hints.
+
+It is commonly used with FastAPI because it makes it easy to define what type of data an API should accept.
+
+For example:
+
+```python
+class Patient(BaseModel):
+    name: str
+    age: int
+```
+
+Here, `Patient` is a Pydantic model and it expects:
+
+* `name` to be a string
+* `age` to be an integer
+
+When we create the object, Pydantic checks the data.
+
+```python
+patient = Patient(name="John", age=30)
+```
+
+---
+
+## BaseModel
+
+```python
+from pydantic import BaseModel
+```
+
+`BaseModel` is the main class used for creating Pydantic models.
+
+```python
+class Patient(BaseModel):
+    name: str
+    age: int
+```
+
+Because `Patient` inherits from `BaseModel`, Pydantic automatically performs validation when we create a `Patient` object.
+
+---
+
+# Field
+
+```python
+from pydantic import Field
+```
+
+`Field()` is used when we want to add extra rules or information to a field.
+
+Example:
+
+```python
+age: int = Field(ge=0, le=120)
+```
+
+This means the age must be:
+
+```text
+greater than or equal to 0
+and
+less than or equal to 120
+```
+
+So:
+
+```text
+0       -> valid
+25      -> valid
+120     -> valid
+-5      -> invalid
+150     -> invalid
+```
+
+---
+
+# Annotated
+
+```python
+from typing import Annotated
+```
+
+`Annotated` allows us to attach extra information or validation rules to a type.
+
+Example:
+
+```python
+name: Annotated[str, Field(max_length=50)]
+```
+
+This means:
+
+```text
+name must be a string
++
+name can have maximum 50 characters
+```
+
+Another example from the code:
+
+```python
+weight: Annotated[float, Field(gt=0, strict=True)]
+```
+
+Here:
+
+* `float` means the value should be a float
+* `gt=0` means the value must be greater than 0
+* `strict=True` means Pydantic should use strict type checking for this field
+
+---
+
+# max_length
+
+```python
+Field(max_length=50)
+```
+
+`max_length` specifies the maximum number of characters allowed in a string.
+
+Example:
+
+```python
+name: Annotated[str, Field(max_length=50)]
+```
+
+This is valid:
+
+```python
+name = "John Doe"
+```
+
+But a string containing more than 50 characters will fail validation.
+
+---
+
+# title
+
+```python
+Field(title="Name of the patient")
+```
+
+`title` is mainly used as metadata.
+
+It gives the field a readable title and can appear in generated JSON Schema and FastAPI documentation.
+
+It does not perform validation.
+
+---
+
+# description
+
+```python
+Field(
+    description="This field is used to store the name of the patient"
+)
+```
+
+`description` provides additional information about the field.
+
+It is useful when generating API documentation.
+
+For example, FastAPI can show this description in Swagger UI.
+
+---
+
+# ge
+
+`ge` means:
+
+```text
+greater than or equal to
+```
+
+Example:
+
+```python
+age: int = Field(ge=0)
+```
+
+means:
+
+```text
+age >= 0
+```
+
+So `0` is allowed.
+
+---
+
+# le
+
+`le` means:
+
+```text
+less than or equal to
+```
+
+Example:
+
+```python
+age: int = Field(le=120)
+```
+
+means:
+
+```text
+age <= 120
+```
+
+When we combine both:
+
+```python
+age: int = Field(ge=0, le=120)
+```
+
+we get:
+
+```text
+0 <= age <= 120
+```
+
+---
+
+# gt
+
+`gt` means:
+
+```text
+greater than
+```
+
+Example:
+
+```python
+weight: Annotated[float, Field(gt=0)]
+```
+
+means:
+
+```text
+weight > 0
+```
+
+So:
+
+```text
+70.5  -> valid
+1.5   -> valid
+0     -> invalid
+-5    -> invalid
+```
+
+The difference between `gt` and `ge` is:
+
+```text
+gt=0  -> value must be greater than 0
+ge=0  -> value can be greater than or equal to 0
+```
+
+---
+
+# strict=True
+
+```python
+weight: Annotated[float, Field(gt=0, strict=True)]
+```
+
+`strict=True` tells Pydantic to be strict about the field's type instead of freely converting compatible input types.
+
+For example, without strict validation, Pydantic may accept a string such as:
+
+```python
+"70.5"
+```
+
+and convert it to a number.
+
+With strict validation, the input needs to already have the expected numeric type.
+
+This is useful when we don't want automatic type conversion for a particular field.
+
+---
+
+# Optional
+
+```python
+from typing import Optional
+```
+
+`Optional` means a field can contain a value or `None`.
+
+Example:
+
+```python
+linkedin: Optional[AnyUrl]
+```
+
+means:
+
+```text
+linkedin can contain a URL
+OR
+linkedin can be None
+```
+
+If we also want the field to be optional when creating the model, we normally give it a default:
+
+```python
+linkedin: Optional[AnyUrl] = None
+```
+
+---
+
+# AnyUrl
+
+```python
+from pydantic import AnyUrl
+```
+
+`AnyUrl` is a Pydantic type used for validating URLs.
+
+In the code:
+
+```python
+linkedin: Optional[AnyUrl] = Field(default=None)
+```
+
+we expect the LinkedIn field to contain a valid URL or `None`.
+
+Example:
+
+```python
+linkedin = "https://www.linkedin.com/in/johndoe"
+```
+
+Pydantic checks the URL format.
+
+---
+
+# EmailStr
+
+```python
+from pydantic import EmailStr
+```
+
+`EmailStr` is used for validating email addresses.
+
+Example:
+
+```python
+email: EmailStr
+```
+
+Pydantic checks that the value looks like a valid email address.
+
+For example:
+
+```text
+john.doe@example.com
+```
+
+is a valid email format.
+
+---
+
+# List
+
+```python
+from typing import List
+```
+
+`List[str]` means a list where the values should be strings.
+
+Example:
+
+```python
+allergies: Optional[List[str]]
+```
+
+Possible value:
+
+```python
+["Peanuts", "Milk", "Dust"]
+```
+
+Each item in the list should be a string.
+
+---
+
+# Dict
+
+```python
+from typing import Dict
+```
+
+`Dict[str, str]` means a dictionary where:
+
+```text
+key   -> string
+value -> string
+```
+
+Example:
+
+```python
+contact_details = {
+    "phone": "123-456-7890",
+    "address": "123 Main St, Anytown, USA"
+}
+```
+
+Both the keys and values are strings.
+
+---
+
+# Patient Model
+
+The complete model is:
+
+```python
+class Patient(BaseModel):
+    name: Annotated[
+        str,
+        Field(
+            max_length=50,
+            title="Name of the patient",
+            description="This field is used to store the name of the patient"
+        )
+    ]
+
+    age: int = Field(ge=0, le=120)
+
+    weight: float = Annotated[
+        float,
+        Field(gt=0, strict=True)
+    ]
+
+    married: Annotated[
+        bool,
+        Field(
+            default=None,
+            description="This field is used to store the marital status of the patient"
+        )
+    ]
+
+    linkedin: Optional[AnyUrl] = Field(default=None)
+
+    allergies: Optional[List[str]] = Field(default=None)
+
+    email: EmailStr = Field(default=None)
+
+    contact_details: Dict[str, str] = Field(default=None)
+```
+
+The model defines the expected structure of patient data.
+
+---
+
+# Understanding Each Patient Field
+
+## name
+
+```python
+name: Annotated[
+    str,
+    Field(
+        max_length=50,
+        title="Name of the patient",
+        description="This field is used to store the name of the patient"
+    )
+]
+```
+
+The name:
+
+* must be a string
+* can have a maximum of 50 characters
+* has a title and description for documentation
+
+---
+
+## age
+
+```python
+age: int = Field(ge=0, le=120)
+```
+
+The age:
+
+* must be an integer
+* cannot be less than 0
+* cannot be greater than 120
+
+---
+
+## weight
+
+```python
+weight: Annotated[
+    float,
+    Field(gt=0, strict=True)
+]
+```
+
+The weight:
+
+* should be a float
+* must be greater than 0
+* uses strict type validation
+
+---
+
+## married
+
+```python
+married: Annotated[
+    bool,
+    Field(default=None)
+]
+```
+
+The field is intended to represent whether the patient is married.
+
+Possible values:
+
+```python
+True
+False
+None
+```
+
+For a field whose value can actually be `None`, a clearer type declaration would be:
+
+```python
+married: Optional[bool] = None
+```
+
+---
+
+## linkedin
+
+```python
+linkedin: Optional[AnyUrl] = Field(default=None)
+```
+
+The patient can provide a LinkedIn URL, but it can also be `None`.
+
+Example:
+
+```python
+"https://www.linkedin.com/in/johndoe"
+```
+
+---
+
+## allergies
+
+```python
+allergies: Optional[List[str]] = Field(default=None)
+```
+
+The field can contain a list of allergies.
+
+Example:
+
+```python
+["Peanuts", "Dust"]
+```
+
+It can also be `None`.
+
+---
+
+## email
+
+```python
+email: EmailStr = Field(default=None)
+```
+
+The value is expected to be a valid email address.
+
+If this field is supposed to be optional, a clearer declaration is:
+
+```python
+email: Optional[EmailStr] = None
+```
+
+If it is required, use:
+
+```python
+email: EmailStr
+```
+
+---
+
+## contact_details
+
+```python
+contact_details: Dict[str, str] = Field(default=None)
+```
+
+This stores contact information as a dictionary.
+
+Example:
+
+```python
+{
+    "phone": "123-456-7890",
+    "address": "123 Main St, Anytown, USA"
+}
+```
+
+If this field can actually be `None`, a clearer type declaration is:
+
+```python
+contact_details: Optional[Dict[str, str]] = None
+```
+
+---
+
+# Creating Patient Data
+
+We first create a normal Python dictionary:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "age": 30,
+    "weight": 70.5,
+    "linkedin": "https://www.linkedin.com/in/johndoe",
+    "married": True,
+    "email": "john.doe@example.com",
+    "allergies": ["Peanuts"],
+    "contact_details": {
+        "phone": "123-456-7890"
+    }
+}
+```
+
+This dictionary contains all the patient information.
+
+---
+
+# What does `**patient_info` mean?
+
+We create the Pydantic model using:
+
+```python
+patient1 = Patient(**patient_info)
+```
+
+The `**` operator unpacks a dictionary.
+
+So this:
+
+```python
+Patient(**patient_info)
+```
+
+is basically the same as:
+
+```python
+Patient(
+    name="John Doe",
+    age=30,
+    weight=70.5,
+    linkedin="https://www.linkedin.com/in/johndoe",
+    married=True,
+    email="john.doe@example.com",
+    allergies=["Peanuts"],
+    contact_details={
+        "phone": "123-456-7890"
+    }
+)
+```
+
+---
+
+# What happens when `Patient()` is created?
+
+When we execute:
+
+```python
+patient1 = Patient(**patient_info)
+```
+
+Pydantic checks the supplied data.
+
+The general flow is:
+
+```text
+patient_info
+     |
+     v
+Patient(**patient_info)
+     |
+     v
+Pydantic validation
+     |
+     +---- name -> string, max 50 characters
+     |
+     +---- age -> integer, 0 to 120
+     |
+     +---- weight -> float, greater than 0
+     |
+     +---- married -> boolean
+     |
+     +---- linkedin -> valid URL
+     |
+     +---- email -> valid email
+     |
+     +---- allergies -> list of strings
+     |
+     +---- contact_details -> dictionary
+     |
+     v
+Patient object
+```
+
+If the data doesn't satisfy the rules, Pydantic raises a validation error.
+
+---
+
+# Example of Invalid Age
+
+Suppose we have:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "age": 150,
+    "weight": 70.5
+}
+```
+
+The model contains:
+
+```python
+age: int = Field(ge=0, le=120)
+```
+
+Since:
+
+```text
+150 > 120
+```
+
+Pydantic rejects the data.
+
+---
+
+# Example of Invalid Weight
+
+Suppose:
+
+```python
+weight = -10
+```
+
+The field has:
+
+```python
+Field(gt=0)
+```
+
+which means:
+
+```text
+weight > 0
+```
+
+Therefore `-10` is rejected.
+
+---
+
+# Example of Invalid URL
+
+Suppose:
+
+```python
+linkedin = "hello"
+```
+
+The `AnyUrl` type checks whether the value is a valid URL.
+
+If it isn't valid, Pydantic raises a validation error.
+
+---
+
+# Pydantic Model Object
+
+After:
+
+```python
+patient1 = Patient(**patient_info)
+```
+
+`patient1` is a Pydantic model object.
+
+We can access its fields using dot notation:
+
+```python
+patient1.name
+patient1.age
+patient1.weight
+patient1.married
+patient1.linkedin
+patient1.allergies
+patient1.contact_details
+```
+
+---
+
+# update_patient_data()
+
+```python
+def update_patient_data(existing_patient: Patient):
+```
+
+The `existing_patient: Patient` part is a type hint.
+
+It tells us that this function expects a `Patient` object.
+
+Inside the function:
+
+```python
+print(existing_patient.name)
+print(existing_patient.age)
+print(existing_patient.weight)
+```
+
+we access the data stored in the Pydantic object.
+
+The current function only prints the information. It does not actually update a database.
+
+---
+
+# create_patient_data()
+
+```python
+def create_patient_data(new_patient: Patient):
+```
+
+This function also expects a `Patient` object.
+
+It prints the patient's information and then prints:
+
+```text
+Patient data created successfully.
+```
+
+Again, this example doesn't actually save anything to a database. It is just demonstrating how a Pydantic object can be passed to another function.
+
+---
+
+# Complete Program Flow
+
+```text
+Dictionary
+    |
+    v
+patient_info
+    |
+    v
+Patient(**patient_info)
+    |
+    v
+Pydantic validates the data
+    |
+    v
+patient1
+    |
+    +--------------------+
+    |                    |
+    v                    v
+update_patient_data   create_patient_data
+    |                    |
+    v                    v
+print data            print data
+```
+
+---
+
+# Why Pydantic is Useful
+
+Without Pydantic, we would have to manually check every value.
+
+For example:
+
+```python
+if not isinstance(age, int):
+    ...
+
+if age < 0:
+    ...
+
+if age > 120:
+    ...
+
+if not isinstance(allergies, list):
+    ...
+```
+
+Pydantic handles much of this automatically through type hints and field definitions.
+
+This becomes especially useful in FastAPI APIs.
+
+For example:
+
+```python
+@app.post("/patients")
+def create_patient(patient: Patient):
+    return patient
+```
+
+FastAPI can use the `Patient` model to validate incoming JSON data automatically.
+
+---
+
+# Important Terms
+
+## BaseModel
+
+Base class used to create Pydantic models.
+
+```python
+class Patient(BaseModel):
+    ...
+```
+
+## Field
+
+Used to define constraints and metadata.
+
+```python
+Field(ge=0, le=120)
+```
+
+## Annotated
+
+Used to attach additional metadata or validation rules to a type.
+
+```python
+Annotated[str, Field(max_length=50)]
+```
+
+## Optional
+
+Means the value can be the specified type or `None`.
+
+```python
+Optional[str]
+```
+
+## AnyUrl
+
+Pydantic type for URL validation.
+
+## EmailStr
+
+Pydantic type for email validation.
+
+## List
+
+Represents a list of values.
+
+```python
+List[str]
+```
+
+## Dict
+
+Represents a dictionary with specified key and value types.
+
+```python
+Dict[str, str]
+```
+
+## `ge`
+
+Greater than or equal to.
+
+```python
+ge=0
+```
+
+means:
+
+```text
+value >= 0
+```
+
+## `le`
+
+Less than or equal to.
+
+```python
+le=120
+```
+
+means:
+
+```text
+value <= 120
+```
+
+## `gt`
+
+Greater than.
+
+```python
+gt=0
+```
+
+means:
+
+```text
+value > 0
+```
+
+## `strict=True`
+
+Makes Pydantic stricter about the field's type and reduces automatic type conversion.
+
+## `default=None`
+
+Sets the default value of a field to `None`.
+
+---
+
+# Pydantic Data Validation
+
+The main idea behind this code is:
+
+```text
+Python Type Hints
+       +
+Field Constraints
+       +
+Pydantic
+       =
+Validated Data
+```
+
+For this model:
+
+```text
+name
+ -> string
+ -> max 50 characters
+
+age
+ -> integer
+ -> 0 to 120
+
+weight
+ -> float
+ -> greater than 0
+
+married
+ -> boolean / None
+
+linkedin
+ -> valid URL / None
+
+email
+ -> valid email
+
+allergies
+ -> list of strings
+
+contact_details
+ -> dictionary of string keys and values
+```
+
+---
+
+# Final Takeaway
+
+The main purpose of this code is to define a structured `Patient` model and let Pydantic validate the data automatically.
+
+The important concepts used here are:
+
+```text
+BaseModel
+Field
+Annotated
+Optional
+AnyUrl
+EmailStr
+List
+Dict
+Type hints
+Field constraints
+Default values
+Dictionary unpacking (**)
+Pydantic validation
+```
+
+Once this is clear, the next important Pydantic topics to learn are:
+
+```text
+field_validator
+model_validator
+before / after validation
+computed_field
+model_dump()
+model_dump_json()
+model_validate()
+nested models
+Field aliases
+ConfigDict
+```
+
+These concepts are especially useful when working with Pydantic in FastAPI.
