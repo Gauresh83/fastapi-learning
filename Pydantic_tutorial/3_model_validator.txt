@@ -1,0 +1,982 @@
+# Pydantic Model Validator
+
+## What is a Model Validator?
+
+A **model validator** is used when we need to validate multiple fields together.
+
+A `field_validator` works mainly with one particular field.
+
+A `model_validator` works with the **complete Pydantic model**.
+
+For example, suppose we have:
+
+```python
+class Patient(BaseModel):
+    age: int
+    contact_details: Dict[str, str]
+```
+
+Now we want to apply this rule:
+
+> If the patient is older than 60, an emergency contact must be present.
+
+This rule depends on **two fields**:
+
+```text
+age
+contact_details
+```
+
+So instead of using a field validator, we can use a model validator.
+
+---
+
+# Importing model_validator
+
+```python
+from pydantic import model_validator
+```
+
+Then we can write:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    ...
+```
+
+---
+
+# Field Validator vs Model Validator
+
+## Field Validator
+
+A field validator is normally used when the validation is related to one field.
+
+Example:
+
+```python
+@field_validator("age")
+@classmethod
+def validate_age(cls, value):
+    if value < 0:
+        raise ValueError("Age cannot be negative.")
+
+    return value
+```
+
+Here we are mainly validating:
+
+```text
+age
+```
+
+---
+
+## Model Validator
+
+A model validator is useful when a rule depends on multiple fields.
+
+Example:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    if self.age > 60 and "emergency" not in self.contact_details:
+        raise ValueError(
+            "Patients older than 60 must have an emergency contact."
+        )
+
+    return self
+```
+
+Here we are checking:
+
+```text
+age
++
+contact_details
+```
+
+Therefore, a model validator is more suitable.
+
+---
+
+# `mode="after"`
+
+Your code uses:
+
+```python
+@model_validator(mode="after")
+```
+
+`after` means the model's fields have already gone through their normal Pydantic validation before this validator runs.
+
+The basic flow is:
+
+```text
+Input data
+    ↓
+Pydantic field validation
+    ↓
+Patient model is created
+    ↓
+model_validator(mode="after")
+    ↓
+Additional business rule
+    ↓
+Final Patient object
+```
+
+This is useful because the validator can work with the already validated model.
+
+For example:
+
+```python
+model.age
+```
+
+is already an integer according to the model definition.
+
+And:
+
+```python
+model.contact_details
+```
+
+has already been validated as a dictionary.
+
+---
+
+# Your Model Validator
+
+Your code contains:
+
+```python
+@model_validator(mode='after')
+def validate_emergency_contact(cls,model):
+    if model.age >60 and 'emergency ' not in model.contact_details:
+        raise ValueError(
+            "Patients older than 60 must have an emergency contact "
+            "in their contact details."
+        )
+
+    return model
+```
+
+The purpose is:
+
+```text
+If age > 60
+       ↓
+Check contact_details
+       ↓
+Does "emergency" exist?
+       ↓
+Yes → valid
+No  → raise error
+```
+
+---
+
+# Understanding `model`
+
+In:
+
+```python
+def validate_emergency_contact(cls, model):
+```
+
+`model` represents the complete `Patient` object.
+
+Therefore we can access:
+
+```python
+model.name
+model.email
+model.age
+model.weight
+model.married
+model.allergies
+model.contact_details
+```
+
+For example:
+
+```python
+model.age
+```
+
+gets the patient's age.
+
+And:
+
+```python
+model.contact_details
+```
+
+gets the complete contact details dictionary.
+
+---
+
+# Important Note About Pydantic Version
+
+For Pydantic v2, an `after` model validator is commonly written like this:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    ...
+    return self
+```
+
+In other words, the model itself is passed as `self`.
+
+So the cleaner version of your validator is:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    if self.age > 60 and "emergency" not in self.contact_details:
+        raise ValueError(
+            "Patients older than 60 must have an emergency contact."
+        )
+
+    return self
+```
+
+This is easier to understand when learning Pydantic.
+
+---
+
+# Why `return self`?
+
+An `after` model validator should return the validated model.
+
+Example:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    ...
+    return self
+```
+
+Here:
+
+```text
+self
+ ↓
+complete Patient model
+```
+
+Returning `self` tells Pydantic that the model has successfully passed this validation.
+
+If the validation fails, we raise:
+
+```python
+raise ValueError(...)
+```
+
+---
+
+# Understanding the Condition
+
+Your main condition is:
+
+```python
+if model.age > 60 and "emergency" not in model.contact_details:
+```
+
+There are two conditions.
+
+### First condition
+
+```python
+model.age > 60
+```
+
+This checks whether the patient is older than 60.
+
+For example:
+
+```text
+age = 65
+```
+
+Then:
+
+```text
+65 > 60
+```
+
+is:
+
+```text
+True
+```
+
+---
+
+### Second condition
+
+```python
+"emergency" not in model.contact_details
+```
+
+This checks whether the key `"emergency"` is missing from the dictionary.
+
+Example:
+
+```python
+contact_details = {
+    "phone": "1234567890",
+    "address": "Kanpur"
+}
+```
+
+Then:
+
+```python
+"emergency" not in contact_details
+```
+
+is:
+
+```text
+True
+```
+
+---
+
+# Why `and` is Used
+
+The complete condition is:
+
+```python
+model.age > 60 and "emergency" not in model.contact_details
+```
+
+Both conditions must be true.
+
+| Age > 60 | Emergency missing | Result  |
+| -------- | ----------------- | ------- |
+| False    | False             | Valid   |
+| False    | True              | Valid   |
+| True     | False             | Valid   |
+| True     | True              | Invalid |
+
+So the error occurs only when:
+
+```text
+Patient is older than 60
+AND
+emergency contact is missing
+```
+
+---
+
+# Example 1: Patient Age 30
+
+Your current patient has:
+
+```python
+age = 30
+```
+
+The first condition:
+
+```python
+30 > 60
+```
+
+is:
+
+```text
+False
+```
+
+Because the first condition is false, the entire `and` condition is false.
+
+Therefore, the validator doesn't raise an error.
+
+The patient is valid.
+
+---
+
+# Example 2: Patient Age 70 With Emergency Contact
+
+Suppose:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "email": "john.doe@hdfc.com",
+    "age": 70,
+    "weight": 70.5,
+    "married": True,
+    "allergies": ["penicillin"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "emergency": "987-654-3210"
+    }
+}
+```
+
+The validation becomes:
+
+```text
+70 > 60
+```
+
+True.
+
+Then:
+
+```text
+"emergency" not in contact_details
+```
+
+False, because `"emergency"` exists.
+
+Therefore:
+
+```text
+True and False
+```
+
+is:
+
+```text
+False
+```
+
+The model is valid.
+
+---
+
+# Example 3: Patient Age 70 Without Emergency Contact
+
+Suppose:
+
+```python
+patient_info = {
+    "name": "John Doe",
+    "email": "john.doe@hdfc.com",
+    "age": 70,
+    "weight": 70.5,
+    "married": True,
+    "allergies": ["penicillin"],
+    "contact_details": {
+        "phone": "123-456-7890"
+    }
+}
+```
+
+Now:
+
+```text
+70 > 60
+```
+
+is:
+
+```text
+True
+```
+
+And:
+
+```text
+"emergency" not in contact_details
+```
+
+is:
+
+```text
+True
+```
+
+Therefore:
+
+```text
+True and True
+```
+
+is:
+
+```text
+True
+```
+
+The validator executes:
+
+```python
+raise ValueError(
+    "Patients older than 60 must have an emergency contact."
+)
+```
+
+Pydantic rejects the model.
+
+---
+
+# `not in` Operator
+
+This part:
+
+```python
+"emergency" not in model.contact_details
+```
+
+uses Python's `not in` operator.
+
+It checks whether something is missing from a collection.
+
+Example:
+
+```python
+contacts = {
+    "phone": "1234567890",
+    "address": "Kanpur"
+}
+```
+
+Then:
+
+```python
+"emergency" in contacts
+```
+
+returns:
+
+```text
+False
+```
+
+and:
+
+```python
+"emergency" not in contacts
+```
+
+returns:
+
+```text
+True
+```
+
+---
+
+# Dictionary Keys
+
+For a dictionary:
+
+```python
+contact_details = {
+    "phone": "123-456-7890",
+    "address": "123 Main St",
+    "emergency": "987-654-3210"
+}
+```
+
+The keys are:
+
+```text
+phone
+address
+emergency
+```
+
+So:
+
+```python
+"emergency" in contact_details
+```
+
+checks whether `"emergency"` is one of the dictionary keys.
+
+---
+
+# Important Typo in the Current Code
+
+Your code contains:
+
+```python
+'emergency '
+```
+
+There is a space after `emergency`.
+
+This means Python is checking for this key:
+
+```text
+"emergency "
+```
+
+instead of:
+
+```text
+"emergency"
+```
+
+These are different strings.
+
+Your dictionary contains:
+
+```python
+"emergency": "123-456-7890"
+```
+
+So the condition should be:
+
+```python
+"emergency" not in model.contact_details
+```
+
+not:
+
+```python
+"emergency " not in model.contact_details
+```
+
+This is important because otherwise even a valid emergency contact will appear to be missing.
+
+---
+
+# Correct Model Validator
+
+Use:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    if self.age > 60 and "emergency" not in self.contact_details:
+        raise ValueError(
+            "Patients older than 60 must have an emergency contact "
+            "in their contact details."
+        )
+
+    return self
+```
+
+---
+
+# `model_validator(mode="before")`
+
+There are two commonly used modes:
+
+```text
+before
+after
+```
+
+## Before
+
+```python
+@model_validator(mode="before")
+```
+
+Runs before normal Pydantic model validation.
+
+Conceptually:
+
+```text
+Raw input
+    ↓
+Before model validator
+    ↓
+Pydantic validation
+    ↓
+Patient object
+```
+
+The validator generally receives the raw input data.
+
+For example:
+
+```python
+@model_validator(mode="before")
+@classmethod
+def check_data(cls, data):
+    print(data)
+    return data
+```
+
+Here `data` will normally be the incoming data before it has been converted into the final model.
+
+---
+
+# `model_validator(mode="after")`
+
+Your code uses:
+
+```python
+@model_validator(mode="after")
+```
+
+The flow is:
+
+```text
+Raw input
+    ↓
+Pydantic field validation
+    ↓
+Patient model
+    ↓
+After model validator
+    ↓
+Final model
+```
+
+This is convenient when your business rule depends on already validated fields.
+
+---
+
+# Before vs After
+
+|                                         | `before`                   | `after`                       |
+| --------------------------------------- | -------------------------- | ----------------------------- |
+| Runs                                    | Before model validation    | After model validation        |
+| Receives                                | Raw input                  | Validated model               |
+| Useful for                              | Cleaning/normalizing input | Business rules                |
+| Can access typed model fields directly? | No                         | Yes                           |
+| Example                                 | Normalize incoming data    | Check age + emergency contact |
+
+---
+
+# Field Validator vs Model Validator
+
+## Field Validator
+
+Used mainly for one field:
+
+```python
+@field_validator("age")
+@classmethod
+def validate_age(cls, value):
+    if value < 0:
+        raise ValueError("Age cannot be negative.")
+
+    return value
+```
+
+It focuses on:
+
+```text
+age
+```
+
+---
+
+## Model Validator
+
+Used when the rule depends on multiple fields:
+
+```python
+@model_validator(mode="after")
+def validate_emergency_contact(self):
+    if self.age > 60 and "emergency" not in self.contact_details:
+        raise ValueError("Emergency contact required.")
+
+    return self
+```
+
+It focuses on:
+
+```text
+age
++
+contact_details
+```
+
+---
+
+# Your Complete Program Flow
+
+```text
+patient_info dictionary
+        |
+        v
+Patient(**patient_info)
+        |
+        v
+Pydantic validates fields
+        |
+        +---- name -> str
+        |
+        +---- email -> EmailStr
+        |
+        +---- age -> int
+        |
+        +---- weight -> float
+        |
+        +---- married -> bool / None
+        |
+        +---- allergies -> List[str]
+        |
+        +---- contact_details -> Dict[str, str]
+        |
+        v
+model_validator(mode="after")
+        |
+        v
+Is age > 60?
+        |
+       Yes
+        |
+        v
+Is emergency contact missing?
+        |
+     +--+--+
+     |     |
+    Yes    No
+     |     |
+     v     v
+  Error   Valid
+```
+
+---
+
+# Complete Corrected Code
+
+```python
+from pydantic import BaseModel, EmailStr, model_validator
+from typing import Optional, List, Dict
+
+
+class Patient(BaseModel):
+
+    name: str
+    email: EmailStr
+    age: int
+    weight: float
+    married: Optional[bool]
+    allergies: List[str]
+    contact_details: Dict[str, str]
+
+    @model_validator(mode="after")
+    def validate_emergency_contact(self):
+
+        if self.age > 60 and "emergency" not in self.contact_details:
+            raise ValueError(
+                "Patients older than 60 must have an emergency contact "
+                "in their contact details."
+            )
+
+        return self
+
+
+def update_patient_data(existing_patient: Patient):
+
+    print(existing_patient.name)
+    print(existing_patient.age)
+    print(existing_patient.weight)
+    print(existing_patient.married)
+    print(existing_patient.allergies)
+    print(existing_patient.contact_details)
+
+    print("Patient data updated successfully.")
+
+
+def create_patient_data(new_patient: Patient):
+
+    print(new_patient.name)
+    print(new_patient.age)
+    print(new_patient.weight)
+    print(new_patient.married)
+    print(new_patient.allergies)
+    print(new_patient.contact_details)
+
+    print("Patient data created successfully.")
+
+
+patient_info = {
+    "name": "John Doe",
+    "age": 30,
+    "weight": 70.5,
+    "married": True,
+    "email": "john.doe@hdfc.com",
+    "allergies": ["penicillin", "shellfish"],
+    "contact_details": {
+        "phone": "123-456-7890",
+        "address": "123 Main St, Anytown, USA",
+        "emergency": "123-456-7890"
+    }
+}
+
+
+patient1 = Patient(**patient_info)
+
+update_patient_data(patient1)
+create_patient_data(patient1)
+```
+
+---
+
+# Key Things to Remember
+
+```text
+BaseModel
+    -> Creates the Pydantic model
+
+Field
+    -> Adds constraints and metadata
+
+field_validator
+    -> Validates one particular field
+
+model_validator
+    -> Validates the complete model
+
+mode="before"
+    -> Runs before normal validation
+
+mode="after"
+    -> Runs after normal validation
+
+self
+    -> Complete model inside an after model validator
+
+cls
+    -> Model class, commonly used with classmethod validators
+
+value
+    -> Value of a particular field
+
+raise ValueError()
+    -> Rejects invalid data
+
+return self
+    -> Returns the validated model
+
+"key" in dictionary
+    -> Checks whether a dictionary key exists
+
+"key" not in dictionary
+    -> Checks whether a dictionary key is missing
+```
+
+# Simple Way to Remember
+
+```text
+field_validator
+        ↓
+"Check this field"
+
+model_validator
+        ↓
+"Check the relationship between fields"
+```
+
+For example:
+
+```text
+age > 60
+      +
+emergency contact missing
+      ↓
+      ERROR
+```
+
+This is exactly the type of situation where a `model_validator` is useful.
