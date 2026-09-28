@@ -1,0 +1,1928 @@
+# FastAPI Patient API
+
+This project is a simple FastAPI application for managing patient data.
+
+It demonstrates:
+
+* Pydantic `BaseModel`
+* `Field()` and `Annotated`
+* `Literal`
+* `computed_field`
+* `Path()`
+* `Query()`
+* `HTTPException`
+* `JSONResponse`
+* GET requests
+* POST requests
+* Reading and writing JSON files
+* Sorting patient data
+* Automatic validation using Pydantic
+
+---
+
+# 1. Importing Required Modules
+
+```python
+from fastapi import FastAPI, Path, HTTPException, Query
+```
+
+These are imported from FastAPI.
+
+### `FastAPI`
+
+Used to create the FastAPI application.
+
+```python
+app = FastAPI()
+```
+
+### `Path`
+
+Used to add validation and documentation to path parameters.
+
+Example:
+
+```text
+/patient/P001
+```
+
+Here `P001` is a path parameter.
+
+### `Query`
+
+Used to add validation and documentation to query parameters.
+
+Example:
+
+```text
+/sort?sort_by=height&order=asc
+```
+
+### `HTTPException`
+
+Used when we want to return an HTTP error response.
+
+Example:
+
+```python
+raise HTTPException(
+    status_code=404,
+    detail="Patient not found"
+)
+```
+
+---
+
+# 2. Pydantic Imports
+
+```python
+from pydantic import BaseModel, Field, computed_field
+```
+
+### `BaseModel`
+
+Used to create the Pydantic model.
+
+```python
+class Patient(BaseModel):
+```
+
+### `Field`
+
+Used to add:
+
+* Validation
+* Description
+* Example
+* Constraints
+* Metadata
+
+### `computed_field`
+
+Used when we want to create a calculated field from existing model fields.
+
+In this project:
+
+```text
+height + weight
+       ↓
+      BMI
+       ↓
+    verdict
+```
+
+---
+
+# 3. Other Imports
+
+```python
+from typing import Annotated, Optional, Literal
+```
+
+### `Annotated`
+
+Allows us to combine a type with additional metadata or validation.
+
+Example:
+
+```python
+age: Annotated[
+    int,
+    Field(gt=0, lt=120)
+]
+```
+
+### `Literal`
+
+Restricts a field to specific values.
+
+Example:
+
+```python
+gender: Literal["Male", "Female", "others"]
+```
+
+Only these values are accepted.
+
+### `Optional`
+
+Allows a value to be optional.
+
+It is imported here but is not actually used in the current `Patient` model.
+
+---
+
+# 4. JSON Response
+
+```python
+from fastapi.responses import JSONResponse
+```
+
+`JSONResponse` allows us to manually specify the HTTP status code and response content.
+
+Example:
+
+```python
+return JSONResponse(
+    status_code=201,
+    content={
+        "message": "patient created successfully"
+    }
+)
+```
+
+---
+
+# 5. JSON Module
+
+```python
+import json
+```
+
+The `json` module is used to read and write patient data from:
+
+```text
+patients.json
+```
+
+So in this project, the JSON file is acting as a simple data store.
+
+---
+
+# 6. Creating the FastAPI Application
+
+```python
+app = FastAPI()
+```
+
+This creates the FastAPI application object.
+
+The routes such as:
+
+```python
+@app.get("/")
+```
+
+are registered with this application.
+
+---
+
+# 7. Patient Pydantic Model
+
+```python
+class Patient(BaseModel):
+```
+
+This creates a Pydantic model named `Patient`.
+
+The model defines what data a patient should contain.
+
+---
+
+# 8. Patient ID
+
+```python
+id: Annotated[
+    str,
+    Field(
+        ...,
+        description="The ID of the patient",
+        example="P001"
+    )
+]
+```
+
+The type is:
+
+```python
+str
+```
+
+So the patient ID must be a string.
+
+The `...` means the field is required.
+
+Example:
+
+```text
+P001
+```
+
+---
+
+# 9. Patient Name
+
+```python
+name: Annotated[
+    str,
+    Field(
+        ...,
+        description="The name of the patient",
+        example="John Doe"
+    )
+]
+```
+
+The patient's name must be a string.
+
+Example:
+
+```text
+John Doe
+```
+
+---
+
+# 10. City
+
+```python
+city: Annotated[
+    str,
+    Field(
+        ...,
+        description="The city of the patient",
+        example="New York"
+    )
+]
+```
+
+This stores the patient's city.
+
+Example:
+
+```text
+New York
+```
+
+---
+
+# 11. Age Validation
+
+```python
+age: Annotated[
+    int,
+    Field(
+        ...,
+        gt=0,
+        lt=120,
+        description="The age of the patient",
+        example=30
+    )
+]
+```
+
+The type is:
+
+```python
+int
+```
+
+The constraints are:
+
+```python
+gt=0
+```
+
+means:
+
+```text
+age > 0
+```
+
+and:
+
+```python
+lt=120
+```
+
+means:
+
+```text
+age < 120
+```
+
+Therefore, the accepted range is:
+
+```text
+1 to 119
+```
+
+---
+
+# 12. Gender Using Literal
+
+```python
+gender: Annotated[
+    Literal["Male", "Female", "others"],
+    Field(
+        ...,
+        description="The gender of the patient",
+        example="Male"
+    )
+]
+```
+
+`Literal` restricts the possible values.
+
+Allowed values are:
+
+```text
+Male
+Female
+others
+```
+
+For example:
+
+```text
+Male
+```
+
+is valid.
+
+But:
+
+```text
+male
+```
+
+is not one of the specified literal values.
+
+The matching is case-sensitive.
+
+---
+
+# 13. Height
+
+```python
+height: Annotated[
+    float,
+    Field(
+        ...,
+        gt=0,
+        description="The height of the patient in meters",
+        example=1.75
+    )
+]
+```
+
+The height must be:
+
+```text
+greater than 0
+```
+
+The unit is meters.
+
+Example:
+
+```text
+1.75
+```
+
+---
+
+# 14. Weight
+
+```python
+weight: Annotated[
+    float,
+    Field(
+        ...,
+        gt=0,
+        description="The weight of the patient in kilograms",
+        example=70.5
+    )
+]
+```
+
+The weight must be greater than zero.
+
+The unit is kilograms.
+
+Example:
+
+```text
+70.5
+```
+
+---
+
+# 15. Computed Fields
+
+The model contains two calculated fields:
+
+```python
+@computed_field
+@property
+def bmi(self) -> float:
+```
+
+and:
+
+```python
+@computed_field
+@property
+def verdict(self) -> str:
+```
+
+These values are not directly supplied by the user.
+
+They are calculated from other fields.
+
+---
+
+# 16. What is `@property`?
+
+Normally, a method is called using:
+
+```python
+patient.bmi()
+```
+
+But when we use:
+
+```python
+@property
+```
+
+we can access it like an attribute:
+
+```python
+patient.bmi
+```
+
+So:
+
+```python
+@property
+def bmi(self):
+```
+
+allows:
+
+```python
+patient.bmi
+```
+
+instead of:
+
+```python
+patient.bmi()
+```
+
+---
+
+# 17. What is `@computed_field`?
+
+`@computed_field` tells Pydantic that this calculated property should also be treated as a field during serialization/schema generation.
+
+For example:
+
+```python
+patient.model_dump()
+```
+
+can include:
+
+```text
+bmi
+verdict
+```
+
+along with the normal model fields.
+
+---
+
+# 18. BMI Calculation
+
+The code is:
+
+```python
+@computed_field
+@property
+def bmi(self) -> float:
+
+    bmi = round(
+        self.weight / (self.height ** 2),
+        2
+    )
+
+    return bmi
+```
+
+The BMI formula is:
+
+```text
+BMI = weight / height²
+```
+
+where:
+
+```text
+weight = kilograms
+height = meters
+```
+
+---
+
+# 19. Example BMI
+
+Suppose:
+
+```text
+weight = 70.5 kg
+height = 1.75 m
+```
+
+Then:
+
+```text
+BMI = 70.5 / (1.75²)
+```
+
+which gives approximately:
+
+```text
+23.02
+```
+
+Therefore:
+
+```python
+patient.bmi
+```
+
+returns:
+
+```text
+23.02
+```
+
+---
+
+# 20. What Does `self` Mean?
+
+Inside:
+
+```python
+def bmi(self):
+```
+
+`self` refers to the current `Patient` object.
+
+Therefore:
+
+```python
+self.weight
+```
+
+means:
+
+```text
+current patient's weight
+```
+
+and:
+
+```python
+self.height
+```
+
+means:
+
+```text
+current patient's height
+```
+
+---
+
+# 21. Patient Verdict
+
+The code is:
+
+```python
+@computed_field
+@property
+def verdict(self) -> str:
+
+    if self.bmi < 18.5:
+        return "Underweigth"
+
+    elif self.bmi < 25:
+        return "Normal"
+
+    elif self.bmi < 30:
+        return "Normal"
+
+    else:
+        return "Obese"
+```
+
+The verdict is calculated using BMI.
+
+The current logic is:
+
+```text
+BMI < 18.5
+    ↓
+Underweigth
+
+18.5 <= BMI < 25
+    ↓
+Normal
+
+25 <= BMI < 30
+    ↓
+Normal
+
+BMI >= 30
+    ↓
+Obese
+```
+
+Notice that your code currently returns `"Normal"` for both:
+
+```python
+18.5 <= BMI < 25
+```
+
+and:
+
+```python
+25 <= BMI < 30
+```
+
+If your intention is to use the common BMI categories, the second condition would normally return `"Overweight"`:
+
+```python
+elif self.bmi < 30:
+    return "Overweight"
+```
+
+Also, `"Underweigth"` is a spelling mistake. It should be:
+
+```text
+Underweight
+```
+
+---
+
+# 22. Corrected Verdict
+
+A cleaner version would be:
+
+```python
+@computed_field
+@property
+def verdict(self) -> str:
+
+    if self.bmi < 18.5:
+        return "Underweight"
+
+    elif self.bmi < 25:
+        return "Normal"
+
+    elif self.bmi < 30:
+        return "Overweight"
+
+    else:
+        return "Obese"
+```
+
+---
+
+# 23. Loading Data from JSON
+
+The function:
+
+```python
+def load_data():
+
+    with open("patients.json", "r") as f:
+        data = json.load(f)
+
+    return data
+```
+
+is used to read patient data.
+
+---
+
+# 24. `open()`
+
+```python
+open("patients.json", "r")
+```
+
+opens the file.
+
+Here:
+
+```text
+r
+```
+
+means:
+
+```text
+read mode
+```
+
+The file is opened only for reading.
+
+---
+
+# 25. `json.load()`
+
+```python
+data = json.load(f)
+```
+
+converts the JSON file content into a Python object.
+
+For example, JSON:
+
+```json
+{
+    "P001": {
+        "name": "John",
+        "age": 30
+    }
+}
+```
+
+becomes a Python dictionary:
+
+```python
+{
+    "P001": {
+        "name": "John",
+        "age": 30
+    }
+}
+```
+
+---
+
+# 26. Saving Data
+
+The function:
+
+```python
+def save_data(data):
+
+    with open("patients.json", "w") as f:
+        json.dump(data, f)
+```
+
+writes data back to the JSON file.
+
+Here:
+
+```text
+w
+```
+
+means:
+
+```text
+write mode
+```
+
+---
+
+# 27. `json.dump()`
+
+```python
+json.dump(data, f)
+```
+
+converts the Python object into JSON and writes it into the file.
+
+So:
+
+```text
+Python dictionary
+      ↓
+json.dump()
+      ↓
+JSON file
+```
+
+---
+
+# 28. Home Route
+
+```python
+@app.get("/")
+def home():
+
+    return {
+        "message": "My FastAPI Learning Journey"
+    }
+```
+
+This creates a GET endpoint:
+
+```text
+GET /
+```
+
+When the user visits:
+
+```text
+/
+```
+
+the API returns:
+
+```json
+{
+    "message": "My FastAPI Learning Journey"
+}
+```
+
+---
+
+# 29. About Route
+
+```python
+@app.get("/about")
+def about():
+
+    return {
+        "message": "This is a FastAPI application created for learning purposes."
+    }
+```
+
+Endpoint:
+
+```text
+GET /about
+```
+
+It returns information about the application.
+
+---
+
+# 30. View All Patients
+
+```python
+@app.get("/view")
+def view():
+
+    data = load_data()
+
+    return data
+```
+
+Endpoint:
+
+```text
+GET /view
+```
+
+First:
+
+```python
+data = load_data()
+```
+
+loads the data from:
+
+```text
+patients.json
+```
+
+Then:
+
+```python
+return data
+```
+
+returns all patients.
+
+---
+
+# 31. Path Parameters
+
+The route:
+
+```python
+@app.get("/patient/{patient_id}")
+```
+
+contains:
+
+```text
+{patient_id}
+```
+
+This is a path parameter.
+
+Example request:
+
+```text
+GET /patient/P001
+```
+
+Here:
+
+```text
+patient_id = "P001"
+```
+
+---
+
+# 32. `Path()`
+
+The function is:
+
+```python
+def view_patient(
+    patient_id: str = Path(
+        ...,
+        description="The ID of the patient to retrieve",
+        examples="P001"
+    )
+):
+```
+
+`Path()` provides additional metadata and validation for the path parameter.
+
+The `...` means the parameter is required.
+
+---
+
+# 33. Finding a Patient
+
+The code:
+
+```python
+data = load_data()
+
+if patient_id in data:
+    return data[patient_id]
+```
+
+checks whether the patient ID exists in the dictionary.
+
+For example:
+
+```text
+patient_id = P001
+```
+
+The check is:
+
+```python
+if "P001" in data:
+```
+
+If it exists:
+
+```python
+return data["P001"]
+```
+
+returns that patient's information.
+
+---
+
+# 34. HTTP 404 Error
+
+If the patient doesn't exist:
+
+```python
+raise HTTPException(
+    status_code=404,
+    detail=f"Patient with ID {patient_id} not found"
+)
+```
+
+The API returns:
+
+```text
+404 Not Found
+```
+
+Example:
+
+```json
+{
+    "detail": "Patient with ID P999 not found"
+}
+```
+
+---
+
+# 35. Query Parameters
+
+The sorting endpoint is:
+
+```python
+@app.get("/sort")
+```
+
+It uses query parameters:
+
+```text
+sort_by
+order
+```
+
+Example:
+
+```text
+/sort?sort_by=height&order=asc
+```
+
+Here:
+
+```text
+sort_by = height
+order = asc
+```
+
+---
+
+# 36. `Query()`
+
+The function is:
+
+```python
+def sort_patients(
+    sort_by: str = Query(
+        ...,
+        description="sort on the basis of height, weight or bmi"
+    ),
+    order: str = Query(
+        "asc",
+        description="sort in asc or desc"
+    )
+):
+```
+
+The first query parameter:
+
+```python
+sort_by
+```
+
+is required because it uses:
+
+```python
+Query(...)
+```
+
+The second:
+
+```python
+order
+```
+
+has a default value:
+
+```python
+"asc"
+```
+
+So if the user doesn't provide `order`, ascending order is used.
+
+---
+
+# 37. Valid Sort Fields
+
+The code defines:
+
+```python
+valid_fields = [
+    "height",
+    "weight",
+    "bmi"
+]
+```
+
+Therefore, the API only allows sorting by:
+
+```text
+height
+weight
+bmi
+```
+
+---
+
+# 38. Invalid Sort Field
+
+The code:
+
+```python
+if sort_by not in valid_fields:
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Invalid field selected from {valid_fields}"
+    )
+```
+
+checks whether the requested field is valid.
+
+For example:
+
+```text
+/sort?sort_by=name
+```
+
+will result in an error because `name` isn't in the allowed list.
+
+The status code is:
+
+```text
+400 Bad Request
+```
+
+---
+
+# 39. Validating Sort Order
+
+The code:
+
+```python
+if order not in ["asc", "desc"]:
+
+    raise HTTPException(
+        status_code=400,
+        detail='Invalid order selected. Choose "asc" or "desc".'
+    )
+```
+
+allows only:
+
+```text
+asc
+desc
+```
+
+For example:
+
+```text
+/sort?sort_by=height&order=asc
+```
+
+is valid.
+
+And:
+
+```text
+/sort?sort_by=height&order=desc
+```
+
+is also valid.
+
+---
+
+# 40. Ascending and Descending
+
+The code:
+
+```python
+sort_order = True if order == "desc" else False
+```
+
+creates a Boolean value.
+
+If:
+
+```text
+order = desc
+```
+
+then:
+
+```text
+sort_order = True
+```
+
+If:
+
+```text
+order = asc
+```
+
+then:
+
+```text
+sort_order = False
+```
+
+This value is passed to Python's `sorted()` function as:
+
+```python
+reverse=sort_order
+```
+
+---
+
+# 41. Python `sorted()`
+
+The code:
+
+```python
+sorted_data = sorted(
+    data.values(),
+    key=lambda x: x.get(sort_by, 0),
+    reverse=sort_order
+)
+```
+
+sorts the patient data.
+
+---
+
+# 42. `data.values()`
+
+Suppose:
+
+```python
+data = {
+    "P001": {...},
+    "P002": {...},
+    "P003": {...}
+}
+```
+
+Then:
+
+```python
+data.values()
+```
+
+returns only the patient objects:
+
+```text
+P001 data
+P002 data
+P003 data
+```
+
+The IDs are not included in the values.
+
+---
+
+# 43. `lambda`
+
+This part:
+
+```python
+lambda x: x.get(sort_by, 0)
+```
+
+tells Python what value should be used for sorting.
+
+If:
+
+```text
+sort_by = "height"
+```
+
+then it effectively does:
+
+```python
+x.get("height", 0)
+```
+
+If:
+
+```text
+sort_by = "weight"
+```
+
+then:
+
+```python
+x.get("weight", 0)
+```
+
+If:
+
+```text
+sort_by = "bmi"
+```
+
+then:
+
+```python
+x.get("bmi", 0)
+```
+
+---
+
+# 44. Important Point About BMI in `/sort`
+
+There is an important issue in the current code.
+
+Your `Patient` model has:
+
+```python
+@computed_field
+@property
+def bmi(self):
+```
+
+but `/sort` is sorting raw dictionaries loaded directly from:
+
+```text
+patients.json
+```
+
+If the JSON file contains only:
+
+```text
+id
+name
+city
+age
+gender
+height
+weight
+```
+
+and does **not** contain `bmi`, then:
+
+```python
+x.get("bmi", 0)
+```
+
+returns:
+
+```text
+0
+```
+
+for every patient.
+
+So sorting by BMI will not work correctly unless `bmi` is stored in the JSON or calculated before sorting.
+
+This is an important difference between:
+
+```text
+Pydantic model
+```
+
+and:
+
+```text
+raw JSON dictionary
+```
+
+---
+
+# 45. POST `/create`
+
+The route:
+
+```python
+@app.post("/create")
+```
+
+creates a new patient.
+
+The function:
+
+```python
+def create_patient(patient: Patient):
+```
+
+means FastAPI expects the request body to match the `Patient` Pydantic model.
+
+FastAPI automatically validates the incoming JSON using:
+
+```python
+Patient
+```
+
+---
+
+# 46. Example POST Request
+
+A valid request body could be:
+
+```json
+{
+    "id": "P001",
+    "name": "John Doe",
+    "city": "New York",
+    "age": 30,
+    "gender": "Male",
+    "height": 1.75,
+    "weight": 70.5
+}
+```
+
+FastAPI receives this JSON and converts it into a:
+
+```python
+Patient
+```
+
+object.
+
+---
+
+# 47. Checking Duplicate Patient
+
+First:
+
+```python
+data = load_data()
+```
+
+loads the existing patients.
+
+Then:
+
+```python
+if patient.id in data:
+```
+
+checks whether the ID already exists.
+
+For example:
+
+```text
+patient.id = P001
+```
+
+and if:
+
+```text
+P001
+```
+
+already exists in the JSON file, the API rejects the request.
+
+---
+
+# 48. Duplicate Patient Error
+
+The code:
+
+```python
+raise HTTPException(
+    status_code=400,
+    detail="Patient already exists"
+)
+```
+
+returns:
+
+```text
+400 Bad Request
+```
+
+with:
+
+```json
+{
+    "detail": "Patient already exists"
+}
+```
+
+---
+
+# 49. Adding a New Patient
+
+The code:
+
+```python
+data[patient.id] = patient.model_dump(exclude=["id"])
+```
+
+adds the patient to the dictionary.
+
+Suppose:
+
+```text
+patient.id = P003
+```
+
+Then:
+
+```python
+data["P003"] = ...
+```
+
+is created.
+
+---
+
+# 50. `model_dump()`
+
+`model_dump()` converts the Pydantic model into a Python dictionary.
+
+For example:
+
+```python
+patient.model_dump()
+```
+
+could produce:
+
+```python
+{
+    "id": "P003",
+    "name": "John",
+    "city": "Delhi",
+    "age": 30,
+    "gender": "Male",
+    "height": 1.75,
+    "weight": 70.5,
+    "bmi": 23.02,
+    "verdict": "Normal"
+}
+```
+
+Because `bmi` and `verdict` are computed fields, they can be included in serialization.
+
+---
+
+# 51. `exclude=["id"]`
+
+Your code uses:
+
+```python
+patient.model_dump(exclude=["id"])
+```
+
+This removes the `id` field from the dictionary.
+
+Why?
+
+Because the ID is already being used as the dictionary key:
+
+```python
+data[patient.id] = ...
+```
+
+So storing the ID again inside the patient object is unnecessary in this particular JSON structure.
+
+The structure becomes conceptually:
+
+```json
+{
+    "P003": {
+        "name": "John",
+        "city": "Delhi",
+        "age": 30
+    }
+}
+```
+
+instead of:
+
+```json
+{
+    "P003": {
+        "id": "P003",
+        "name": "John",
+        "city": "Delhi"
+    }
+}
+```
+
+---
+
+# 52. Saving the New Patient
+
+After adding the patient:
+
+```python
+save_data(data)
+```
+
+is called.
+
+This writes the updated dictionary into:
+
+```text
+patients.json
+```
+
+The flow is:
+
+```text
+POST request
+      ↓
+FastAPI
+      ↓
+Pydantic validation
+      ↓
+Check duplicate ID
+      ↓
+Add patient to dictionary
+      ↓
+save_data()
+      ↓
+patients.json
+```
+
+---
+
+# 53. HTTP 201 Created
+
+Finally:
+
+```python
+return JSONResponse(
+    status_code=201,
+    content={
+        "message": "patient created successfully"
+    }
+)
+```
+
+returns HTTP status:
+
+```text
+201 Created
+```
+
+This status code indicates that a new resource was successfully created.
+
+Response:
+
+```json
+{
+    "message": "patient created successfully"
+}
+```
+
+---
+
+# Complete API Flow
+
+The application works approximately like this:
+
+```text
+                    FastAPI
+                       │
+          ┌────────────┼────────────┐
+          ↓            ↓            ↓
+       GET /       GET /view    GET /about
+          │            │
+          ↓            ↓
+      Message      All patients
+
+                       │
+                       ↓
+               GET /patient/{id}
+                       │
+                       ↓
+                Find patient
+                       │
+                 ┌─────┴─────┐
+                 ↓           ↓
+               Found       Not Found
+                 ↓           ↓
+               Data       404 Error
+
+
+                       │
+                       ↓
+               GET /sort
+                       │
+                       ↓
+             Query parameters
+             sort_by + order
+                       │
+                       ↓
+                  Sort data
+
+
+                       │
+                       ↓
+                POST /create
+                       │
+                       ↓
+              Pydantic validation
+                       │
+                       ↓
+              Check duplicate ID
+                       │
+                ┌──────┴──────┐
+                ↓             ↓
+             Exists        New ID
+                ↓             ↓
+              400          Add data
+                              ↓
+                         Save JSON
+                              ↓
+                            201
+```
+
+---
+
+# Important FastAPI Concepts Used
+
+| Concept          | Purpose                                        |
+| ---------------- | ---------------------------------------------- |
+| `FastAPI()`      | Creates the application                        |
+| `@app.get()`     | Creates GET endpoint                           |
+| `@app.post()`    | Creates POST endpoint                          |
+| `BaseModel`      | Creates Pydantic model                         |
+| `Field()`        | Adds validation and metadata                   |
+| `Annotated`      | Combines type + metadata                       |
+| `Literal`        | Restricts allowed values                       |
+| `computed_field` | Adds calculated model fields                   |
+| `@property`      | Allows method to be accessed like an attribute |
+| `Path()`         | Validates/document path parameters             |
+| `Query()`        | Validates/document query parameters            |
+| `HTTPException`  | Returns HTTP errors                            |
+| `JSONResponse`   | Custom JSON response/status                    |
+| `model_dump()`   | Converts model to dictionary                   |
+| `json.load()`    | Reads JSON file                                |
+| `json.dump()`    | Writes JSON file                               |
+| `sorted()`       | Sorts patient data                             |
+| `lambda`         | Defines the sorting key                        |
+
+---
+
+# Path Parameter vs Query Parameter
+
+This is an important FastAPI interview concept.
+
+## Path Parameter
+
+Example:
+
+```text
+/patient/P001
+```
+
+Code:
+
+```python
+@app.get("/patient/{patient_id}")
+```
+
+Here:
+
+```text
+patient_id
+```
+
+is part of the URL path.
+
+Used when identifying a specific resource.
+
+---
+
+## Query Parameter
+
+Example:
+
+```text
+/sort?sort_by=height&order=asc
+```
+
+Code:
+
+```python
+def sort_patients(
+    sort_by: str = Query(...),
+    order: str = Query("asc")
+):
+```
+
+Here:
+
+```text
+sort_by
+order
+```
+
+are query parameters.
+
+They are generally used for filtering, sorting, searching, pagination, etc.
+
+---
+
+# Final Important Points
+
+```text
+Patient
+   ↓
+Pydantic model
+   ↓
+Validates incoming data
+```
+
+```text
+height + weight
+       ↓
+computed_field
+       ↓
+BMI
+       ↓
+verdict
+```
+
+```text
+Path()
+   ↓
+/patient/{patient_id}
+```
+
+```text
+Query()
+   ↓
+/sort?sort_by=height&order=asc
+```
+
+```text
+HTTPException
+   ↓
+Return API errors
+```
+
+```text
+JSONResponse
+   ↓
+Custom status code + response
+```
+
+```text
+model_dump()
+   ↓
+Pydantic model → Python dictionary
+```
+
+```text
+json.load()
+   ↓
+JSON file → Python object
+```
+
+```text
+json.dump()
+   ↓
+Python object → JSON file
+```
+
+The overall idea is:
+
+```text
+Client
+  ↓
+FastAPI Endpoint
+  ↓
+Pydantic Validation
+  ↓
+Business Logic
+  ↓
+JSON Data
+  ↓
+Response
+```
