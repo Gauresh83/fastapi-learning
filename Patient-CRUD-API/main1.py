@@ -9,7 +9,7 @@ class Patient(BaseModel):
     name:Annotated[str,Field(...,description="The name of the patient",example="John Doe")]
     city:Annotated[str,Field(...,description="The city of the patient",example="New York")]
     age:Annotated[int,Field(...,gt=0,lt=120,description="The age of the patient",example=30)]
-    gender:Annotated[Literal["Male","Female",'others'],Field(...,description="The gender of the patient",example="Male")]
+    gender:Annotated[Literal["male","female"],Field(...,description="The gender of the patient",example="Male")]
     height:Annotated[float,Field(...,gt=0,description="The height of the patient in meters",example=1.75)]
     weight:Annotated[float,Field(...,gt=0,description="The weight of the patient in kilograms",example=70.5)]
     @computed_field
@@ -93,6 +93,7 @@ def update_patient(patient_id:str,patient_update:PatientUpdate):
     update_patient_info=patient_update.model_dump(exclude_unset=True)
     for key ,value in update_patient_info.items():
         existing_patient_info[key]=value
+    existing_patient_info['id']=patient_id
 
     patient_pydantic_obj =Patient(**existing_patient_info)
     # pydantic object ->dict
@@ -101,5 +102,15 @@ def update_patient(patient_id:str,patient_update:PatientUpdate):
     data[patient_id]=existing_patient_info
     save_data(data)
     return JSONResponse(status_code=200,content={'message':'patient update'})
+@app.delete('/delete/{patient_id}')
+def delete_patient(patient_id:str):
+    data=load_data()
+    if patient_id not in data:
+        raise HTTPException(status_code=404,detail='Patient not found')
+    del data[patient_id]
+    save_data(data)
+    return JSONResponse(status_code=200 ,content={'message':'patient deleted'})
+
+
 
     
