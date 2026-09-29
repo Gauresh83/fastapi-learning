@@ -93,4 +93,13 @@ def update_patient(patient_id:str,patient_update:PatientUpdate):
     update_patient_info=patient_update.model_dump(exclude_unset=True)
     for key ,value in update_patient_info.items():
         existing_patient_info[key]=value
+
+    patient_pydantic_obj =Patient(**existing_patient_info)
+    # pydantic object ->dict
+    existing_patient_info=patient_pydantic_obj.model_dump(exclude='id')
+    #add this dict to value
+    data[patient_id]=existing_patient_info
+    save_data(data)
+    return JSONResponse(status_code=200,content={'message':'patient update'})
+
     
